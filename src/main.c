@@ -182,9 +182,9 @@ int demo_menu(int select) {
             if(get_orientation()) offsety+=display_height/4;
             else offsetx+=display_width/4;
             for(int i=0;i<8;i++) {
-                for(int j=0;j<8;j++) {
-                    int v=i ^ j;
-                    if(v && !(v&(v-1))) {
+                for(int j=i+1;j<8;j++) {
+                    int v=i ^ j; // bit difference
+                    if(v && !(v&(v-1))) { // single bit different!
                         int x=vertex[i].x>>16;
                         int y=vertex[i].y>>16;
                         int z=vertex[i].z>>16;
