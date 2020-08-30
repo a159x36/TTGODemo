@@ -53,16 +53,22 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
 {
     static int pval[2]={1,1};
     uint32_t gpio_num = (uint32_t) arg;
-    int val=gpio_get_level(gpio_num);
+    int gpio_index=(gpio_num==35);
+    int val=(1-pval[gpio_index]);
+    
     uint64_t time=esp_timer_get_time();
     uint64_t timesince=time-lastkeytime;
-    // the buttons can be very bouncy so debounce by checking that it's been 2ms since the last
-    // press and that it's a real negative edge 
-    if(timesince>2000 && val==0 && pval[gpio_num==35]==1) {
-        xQueueSendFromISR(inputQueue,&gpio_num,0);    
+    //ets_printf("gpio_isr_handler %d %d %lld\n",gpio_num,val, timesince);
+    // the buttons can be very bouncy so debounce by checking that it's been .5ms since the last
+    // change and that it's pressed down
+    if(timesince>500 && val==0) {
+        xQueueSendFromISR(inputQueue,&gpio_num,0); 
+        
     }
-    pval[gpio_num==35]=val;
-    lastkeytime=time;
+    pval[gpio_index]=val;
+    lastkeytime=time;   
+    gpio_set_intr_type(gpio_num,val==0?GPIO_INTR_HIGH_LEVEL:GPIO_INTR_LOW_LEVEL);
+    
 }
 
 // get a button press, returns -1 if no button has been pressed
@@ -415,8 +421,8 @@ void app_main() {
     // interrupts for button presses
     gpio_set_direction(0, GPIO_MODE_INPUT);
     gpio_set_direction(35, GPIO_MODE_INPUT);
-    gpio_set_intr_type(0, GPIO_INTR_ANYEDGE);
-    gpio_set_intr_type(35, GPIO_INTR_ANYEDGE);
+    gpio_set_intr_type(0, GPIO_INTR_LOW_LEVEL);
+    gpio_set_intr_type(35, GPIO_INTR_LOW_LEVEL);
     gpio_install_isr_service(0);
     gpio_isr_handler_add(0, gpio_isr_handler, (void*) 0);
     gpio_isr_handler_add(35, gpio_isr_handler, (void*) 35);
