@@ -14,5 +14,9 @@ int get_input();
 // this makes it faster but uses so much extra memory
 // that you can't use wifi at the same time
 #define COPY_IMAGE_TO_RAM 1
-static time_t time_now;
-static struct tm *tm_info;
+extern time_t time_now;
+extern struct tm *tm_info;
+
+extern const char *tag;
+void initialise_wifi(void);
+int obtain_time(void);

@@ -19,10 +19,11 @@
 #include <esp_adc_cal.h>
 #include <time.h>
 
+const char *tag="T Display";
 // voltage reference calibration for Battery ADC
 uint32_t vref;
-static time_t time_now;
-static struct tm *tm_info;
+time_t time_now;
+struct tm *tm_info;
 // Simple game of life demo
 void life() {
     uint16_t linebuffer[display_width*2];
