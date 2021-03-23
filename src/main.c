@@ -22,6 +22,7 @@
 #include "graphics.h"
 #include "image_wave.h"
 #include "demos.h"
+#include "teapot_data.h"
 
 #define PAD_START 3
 #define PAD_END 5
@@ -72,7 +73,7 @@ int get_input() {
 }
 
 typedef struct { int x; int y; int z;} vec3;
-typedef struct { float x; float y; float z;} vec3f;
+
 
 int offsetx;
 int offsety;
@@ -130,9 +131,9 @@ inline float Q_rsqrt( float number )
 }
 
 vec3 normalise(vec3 p) {
-    float mag;//=Q_rsqrt(p.x*p.x+p.y*p.y+p.z*p.z);
+    float mag=Q_rsqrt(p.x*p.x+p.y*p.y+p.z*p.z);
 
-    mag=1.0/sqrtf((float)(p.x*p.x+p.y*p.y+p.z*p.z));
+    //mag=1.0/sqrtf((float)(p.x*p.x+p.y*p.y+p.z*p.z));
     vec3 p1={(p.x*256)*mag, (p.y*256)*mag, (p.z*256)*mag};
     return p1;
 }
@@ -149,98 +150,8 @@ inline int clamp(int x,int min,int max) {
 
 vec3 lightpos={0,0,255};
 
-vec3f teapot_v[]={ 
-    {  0.2000,  0.0000, 2.70000 }, {  0.2000, -0.1120, 2.70000 },
-    {  0.1120, -0.2000, 2.70000 }, {  0.0000, -0.2000, 2.70000 },
-    {  1.3375,  0.0000, 2.53125 }, {  1.3375, -0.7490, 2.53125 },
-    {  0.7490, -1.3375, 2.53125 }, {  0.0000, -1.3375, 2.53125 },
-    {  1.4375,  0.0000, 2.53125 }, {  1.4375, -0.8050, 2.53125 },
-    {  0.8050, -1.4375, 2.53125 }, {  0.0000, -1.4375, 2.53125 },
-    {  1.5000,  0.0000, 2.40000 }, {  1.5000, -0.8400, 2.40000 },
-    {  0.8400, -1.5000, 2.40000 }, {  0.0000, -1.5000, 2.40000 },
-    {  1.7500,  0.0000, 1.87500 }, {  1.7500, -0.9800, 1.87500 },
-    {  0.9800, -1.7500, 1.87500 }, {  0.0000, -1.7500, 1.87500 },
-    {  2.0000,  0.0000, 1.35000 }, {  2.0000, -1.1200, 1.35000 },
-    {  1.1200, -2.0000, 1.35000 }, {  0.0000, -2.0000, 1.35000 },
-    {  2.0000,  0.0000, 0.90000 }, {  2.0000, -1.1200, 0.90000 },
-    {  1.1200, -2.0000, 0.90000 }, {  0.0000, -2.0000, 0.90000 },
-    { -2.0000,  0.0000, 0.90000 }, {  2.0000,  0.0000, 0.45000 },
-    {  2.0000, -1.1200, 0.45000 }, {  1.1200, -2.0000, 0.45000 },
-    {  0.0000, -2.0000, 0.45000 }, {  1.5000,  0.0000, 0.22500 },
-    {  1.5000, -0.8400, 0.22500 }, {  0.8400, -1.5000, 0.22500 },
-    {  0.0000, -1.5000, 0.22500 }, {  1.5000,  0.0000, 0.15000 },
-    {  1.5000, -0.8400, 0.15000 }, {  0.8400, -1.5000, 0.15000 },
-    {  0.0000, -1.5000, 0.15000 }, { -1.6000,  0.0000, 2.02500 },
-    { -1.6000, -0.3000, 2.02500 }, { -1.5000, -0.3000, 2.25000 },
-    { -1.5000,  0.0000, 2.25000 }, { -2.3000,  0.0000, 2.02500 },
-    { -2.3000, -0.3000, 2.02500 }, { -2.5000, -0.3000, 2.25000 },
-    { -2.5000,  0.0000, 2.25000 }, { -2.7000,  0.0000, 2.02500 },
-    { -2.7000, -0.3000, 2.02500 }, { -3.0000, -0.3000, 2.25000 },
-    { -3.0000,  0.0000, 2.25000 }, { -2.7000,  0.0000, 1.80000 },
-    { -2.7000, -0.3000, 1.80000 }, { -3.0000, -0.3000, 1.80000 },
-    { -3.0000,  0.0000, 1.80000 }, { -2.7000,  0.0000, 1.57500 },
-    { -2.7000, -0.3000, 1.57500 }, { -3.0000, -0.3000, 1.35000 },
-    { -3.0000,  0.0000, 1.35000 }, { -2.5000,  0.0000, 1.12500 },
-    { -2.5000, -0.3000, 1.12500 }, { -2.6500, -0.3000, 0.93750 },
-    { -2.6500,  0.0000, 0.93750 }, { -2.0000, -0.3000, 0.90000 },
-    { -1.9000, -0.3000, 0.60000 }, { -1.9000,  0.0000, 0.60000 },
-    {  1.7000,  0.0000, 1.42500 }, {  1.7000, -0.6600, 1.42500 },
-    {  1.7000, -0.6600, 0.60000 }, {  1.7000,  0.0000, 0.60000 },
-    {  2.6000,  0.0000, 1.42500 }, {  2.6000, -0.6600, 1.42500 },
-    {  3.1000, -0.6600, 0.82500 }, {  3.1000,  0.0000, 0.82500 },
-    {  2.3000,  0.0000, 2.10000 }, {  2.3000, -0.2500, 2.10000 },
-    {  2.4000, -0.2500, 2.02500 }, {  2.4000,  0.0000, 2.02500 },
-    {  2.7000,  0.0000, 2.40000 }, {  2.7000, -0.2500, 2.40000 },
-    {  3.3000, -0.2500, 2.40000 }, {  3.3000,  0.0000, 2.40000 },
-    {  2.8000,  0.0000, 2.47500 }, {  2.8000, -0.2500, 2.47500 },
-    {  3.5250, -0.2500, 2.49375 }, {  3.5250,  0.0000, 2.49375 },
-    {  2.9000,  0.0000, 2.47500 }, {  2.9000, -0.1500, 2.47500 },
-    {  3.4500, -0.1500, 2.51250 }, {  3.4500,  0.0000, 2.51250 },
-    {  2.8000,  0.0000, 2.40000 }, {  2.8000, -0.1500, 2.40000 },
-    {  3.2000, -0.1500, 2.40000 }, {  3.2000,  0.0000, 2.40000 },
-    {  0.0000,  0.0000, 3.15000 }, {  0.8000,  0.0000, 3.15000 },
-    {  0.8000, -0.4500, 3.15000 }, {  0.4500, -0.8000, 3.15000 },
-    {  0.0000, -0.8000, 3.15000 }, {  0.0000,  0.0000, 2.85000 },
-    {  1.4000,  0.0000, 2.40000 }, {  1.4000, -0.7840, 2.40000 },
-    {  0.7840, -1.4000, 2.40000 }, {  0.0000, -1.4000, 2.40000 },
-    {  0.4000,  0.0000, 2.55000 }, {  0.4000, -0.2240, 2.55000 },
-    {  0.2240, -0.4000, 2.55000 }, {  0.0000, -0.4000, 2.55000 },
-    {  1.3000,  0.0000, 2.55000 }, {  1.3000, -0.7280, 2.55000 },
-    {  0.7280, -1.3000, 2.55000 }, {  0.0000, -1.3000, 2.55000 },
-    {  1.3000,  0.0000, 2.40000 }, {  1.3000, -0.7280, 2.40000 },
-    {  0.7280, -1.3000, 2.40000 }, {  0.0000, -1.3000, 2.40000 },
-};
 
-
-//typedef struct { int i[16] } patch;
-
-int patches[9][16]={
-//  Rim:
-    { 102, 103, 104, 105,   4,   5,   6,   7,
-        8,   9,  10,  11,  12,  13,  14,  15 },
-//  Body:
-    {  12,  13,  14,  15,  16,  17,  18,  19,
-       20,  21,  22,  23,  24,  25,  26,  27 },
-    {  24,  25,  26,  27,  29,  30,  31,  32,
-       33,  34,  35,  36,  37,  38,  39,  40 },
-//  Lid:
-    {  96,  96,  96,  96,  97,  98,  99, 100,
-      101, 101, 101, 101,   0,   1,   2,   3 },
-    {   0,   1,   2,   3, 106, 107, 108, 109,
-      110, 111, 112, 113, 114, 115, 116, 117 },
-//  Handle:
-    {  41,  42,  43,  44,  45,  46,  47,  48,
-       49,  50,  51,  52,  53,  54,  55,  56 },
-    {  53,  54,  55,  56,  57,  58,  59,  60,
-       61,  62,  63,  64,  28,  65,  66,  67 },
-//  Spout:
-    {  68,  69,  70,  71,  72,  73,  74,  75,
-       76,  77,  78,  79,  80,  81,  82,  83 },
-    {  80,  81,  82,  83,  84,  85,  86,  87,
-       88,  89,  90,  91,  92,  93,  94,  95 },
-};
-
-#define SZ (20<<16)
+#define SZ (15<<16)
 
 float rmx[3][3];
 
@@ -252,93 +163,81 @@ inline void maketrotationmatrix(float alpha, float beta, float gamma) {
     float sb=sin(beta);
     float sc=sin(gamma);
 
-    rmx[0][0]=ca*cb;
-    rmx[0][1]=ca*sb*sc-sa*cc;
-    rmx[0][2]=ca*sb*cc+sa*sc;
-    rmx[1][0]=sa*cb;
-    rmx[1][1]=sa*sb*sc+ca*cc;
-    rmx[1][2]=sa*sb*cc-ca*sc;
+    rmx[0][0]=cc*cb;
+    rmx[0][1]=cc*sb*sa-sc*ca;
+    rmx[0][2]=cc*sb*ca+sc*sa;
+    rmx[1][0]=sc*cb;
+    rmx[1][1]=sc*sb*sa+cc*ca;
+    rmx[1][2]=sc*sb*ca-cc*sa;
     rmx[2][0]=-sb;
-    rmx[2][1]=cb*sc;
-    rmx[2][2]=cb*cc;
+    rmx[2][1]=cb*sa;
+    rmx[2][2]=cb*ca;
 }
+typedef struct {uint16_t r; uint16_t g; uint16_t b;} colourtype;
+colourtype ambiant={64,0,64};
+colourtype diffuse={20,220,40};
 
-void draw_quad_3d(vec3 p0, vec3 p1, vec3 p2, vec3 p3, uint16_t red, uint16_t green, uint16_t blue) {
+
+void draw_quad_3d(vec3 p0, vec3 p1, vec3 p2, vec3 p3) {
 
     vec3 normal=normalise(cross3d(sub3d(p1,p0),sub3d(p3,p0)));
     if(normal.z<0) return;
 
-    int light=clamp(dot(normal,lightpos)+32,0,255);
+    int light=clamp(dot(normal,lightpos),0,255);
 
-    uint16_t colour=rgbToColour((red*light)>>8, (green*light)>>8, (blue*light)>>8);
+    uint16_t colour=rgbToColour(clamp(((diffuse.r*light)>>8)+ambiant.r,0,255),
+    clamp(((diffuse.g*light)>>8)+ambiant.g,0,255),
+    clamp(((diffuse.b*light)>>8)+ambiant.b,0,255));
+//                     (green*light)>>8, (blue*light)>>8);
 
     draw_triangle_3d(p0, p1, p2, colour);
     draw_triangle_3d(p2, p3, p0, colour);
-
-  //  draw_triangle_3d(p0, p3, p2, colour);
-  //  draw_triangle_3d(p2, p1, p0, colour);
-
-/*
-    colour=rgbToColour(255,255,255);
-    draw_line_3d(p0,p1,colour);
-    draw_line_3d(p1,p2,colour);
-    draw_line_3d(p2,p3,colour);
-    draw_line_3d(p3,p0,colour);
-    
-    draw_line_3d(p0,p2,colour);
-    draw_line_3d(p1,p3,colour);
-*/
-    /*
-    int16_t x[4],y[4];
-    point3d_to_xy(&p0,&x[0],&y[0]);
-    point3d_to_xy(&p1,&x[1],&y[1]);
-    point3d_to_xy(&p2,&x[2],&y[2]);
-    point3d_to_xy(&p3,&x[3],&y[3]);
-    uint16_t col=0xffff;
-    draw_line(x[0],y[0],x[1],y[1],col);
-    draw_line(x[1],y[1],x[2],y[2],col);
-    draw_line(x[2],y[2],x[3],y[3],col);
-    draw_line(x[3],y[3],x[0],y[0],col);
-    */
-
 }
 
 void vrotate(vec3 *v1,vec3f v, float f0, float f1, float f2) {
     v.x=v.x*f0;
     v.y=v.y*f1;
-    v.z=v.z*f2;
+    v.z=(v.z-2.0)*f2;
     v1->x=(int)(rmx[0][0]*v.x+rmx[0][1]*v.y+rmx[0][2]*v.z);
     v1->y=(int)(rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z);
     v1->z=(int)(rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z);
 }
 
+#define PI 3.1415926
+float alpha=PI/2;
+float beta=0;
+float gamm=0;
 void draw_teapot() {
+    int order1[]={5,6,0,1,2,3,4,7,8};
+    int order2[]={7,8,0,1,2,3,4,5,6};
 
     for(int i=0;i<9;i++) {
+        int ii;
+        if(beta>PI) ii=order1[i];
+        else ii=order2[i];
         vec3 p[4][4];
         vec3 q[4][4];
         vec3 r[4][4];
         vec3 s[4][4];
         for(int j=0;j<4;j++) {
             for(int k=0;k<4; k++) {
-                vrotate(&p[j][k],teapot_v[patches[i][j*4+k]],SZ,SZ,SZ);
-                vrotate(&q[j][k],teapot_v[patches[i][j*4+3-k]],SZ,-SZ,SZ);
+                vrotate(&p[j][k],teapot_v[patches[ii][j*4+k]],SZ,SZ,SZ);
+                vrotate(&q[j][k],teapot_v[patches[ii][j*4+3-k]],SZ,-SZ,SZ);
             }
-            if(i<6) {
+            if(ii<5) {
                 for(int k=0;k<4; k++) {
-                    vrotate(&r[j][k],teapot_v[patches[i][j*4+3-k]],-SZ,SZ,SZ);
-                    vrotate(&s[j][k],teapot_v[patches[i][j*4+k]],-SZ,-SZ,SZ);
+                    vrotate(&r[j][k],teapot_v[patches[ii][j*4+3-k]],-SZ,SZ,SZ);
+                    vrotate(&s[j][k],teapot_v[patches[ii][j*4+k]],-SZ,-SZ,SZ);
                 }
             }
         }
         for(int j=1;j<4;j++) {
-            for(int k=0;k<4;k++) {
-                int l=(k+1)%4;
-                draw_quad_3d(p[j][k],p[j][l],p[j-1][l],p[j-1][k],200,32,40);
-            //    draw_quad_3d(q[j][k],q[j-1][k],q[j-1][l],q[j][l],200,32,40);
-                if(i<6) {
-            //        draw_quad_3d(r[j][k],r[j][l],r[j-1][l],r[j-1][k],200,32,40);
-            //        draw_quad_3d(s[j][k],s[j][l],s[j-1][l],s[j-1][k],200,32,40);
+            for(int k=1;k<4;k++) {
+                draw_quad_3d(p[j-1][k-1],p[j-1][k],p[j][k],p[j][k-1]);
+                draw_quad_3d(q[j-1][k-1],q[j-1][k],q[j][k],q[j][k-1]);
+                if(ii<6) {
+                    draw_quad_3d(r[j-1][k-1],r[j-1][k],r[j][k],r[j][k-1]);
+                    draw_quad_3d(s[j-1][k-1],s[j-1][k],s[j][k],s[j][k-1]);
                 }
             }
         }
@@ -356,18 +255,18 @@ int demo_menu(int select) {
     int vbx=1,vby=1;
     while(1) {
     // cube vertices
+    /*
         vec3 vertex[8]={
             {-SZ,-SZ,-SZ},{-SZ,-SZ,SZ},{-SZ,SZ,-SZ},{-SZ,SZ,SZ},
             {SZ,-SZ,-SZ},{SZ,-SZ,SZ},{SZ,SZ,-SZ},{SZ,SZ,SZ}
         };
-        float alpha=0;
-        float beta=0;
-        float gamma=0;
+        */
         for(int frame=0;frame < 4000; frame++) {
-            maketrotationmatrix(alpha,beta,gamma);
-            alpha+=0.01;
+            maketrotationmatrix(alpha,beta,gamm);
+            //alpha+=0.01;
             beta+=0.02;
-            gamma+=0.017;
+            if(beta>2*PI) beta=beta-2*PI;
+            gamm+=0.017;
             cls(rgbToColour(100,20,20));
             setFont(FONT_DEJAVU18);
             setFontColour(255, 255, 255);
@@ -375,9 +274,10 @@ int demo_menu(int select) {
             draw_rectangle(0,select*18+24+5,display_width,18,rgbToColour(0,180,180));
             offsetx=display_width/2;
             offsety=display_height/2;
-            draw_teapot();
+            
             if(get_orientation()) offsety+=display_height/4;
             else offsetx+=display_width/4;
+            
             /*
             for(int i=0;i<8;i++) {
                 for(int j=i+1;j<8;j++) {
@@ -414,6 +314,7 @@ int demo_menu(int select) {
 
             extern image_header  bubble;
             draw_image(&bubble,bx,by);
+            draw_teapot();
             bx+=vbx;
             by+=vby;
             if(bx<bubble.width/2 || bx+bubble.width/2>display_width) {vbx=-vbx;bx+=vbx;}
@@ -432,6 +333,7 @@ int demo_menu(int select) {
             else
                 print_xy("Portrait",10,LASTY+18);
             send_frame();
+            /*
             // rotate cube
             for(int i=0;i<8;i++) {
                 int x=vertex[i].x;
@@ -447,6 +349,7 @@ int demo_menu(int select) {
                 vertex[i].y=y;
                 vertex[i].z=z;
             }
+            */
             wait_frame();
             current_time = esp_timer_get_time();
             if ((frame % 10) == 0) {
