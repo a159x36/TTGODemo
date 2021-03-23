@@ -164,3 +164,7 @@ void display() {
         if(key==0) return;
     }
 }
+
+void sensors_demo() {
+    
+}
