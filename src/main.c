@@ -108,6 +108,16 @@ inline vec3 sub3d(vec3 p0, vec3 p1) {
     return p;
 }
 
+inline vec3 add3d(vec3 p0, vec3 p1) {
+    vec3 p={p0.x+p1.x, p0.y+p1.y, p0.z+p1.z};
+    return p;
+}
+
+inline vec3 mid3d(vec3 p0, vec3 p1) {
+    vec3 p={(p0.x+p1.x)/2, (p0.y+p1.y)/2, (p0.z+p1.z)/2};
+    return p;
+}
+
 inline vec3 cross3d(vec3 p0, vec3 p1) {
     vec3 p;
     p.x=(p0.y>>16)*(p1.z>>16)-(p0.z>>16)*(p1.y>>16);
@@ -151,17 +161,22 @@ inline int clamp(int x,int min,int max) {
 vec3 lightpos={0,0,255};
 
 
-#define SZ (15<<16)
+int SZ=(15<<16);
 
 float rmx[3][3];
 
-inline void maketrotationmatrix(float alpha, float beta, float gamma) {
+#define PI 3.1415926
+float alpha=PI/2;
+float beta=0;
+float gamm=0;
+
+inline void maketrotationmatrix() {
     float ca=cos(alpha);
     float cb=cos(beta);
-    float cc=cos(gamma);
+    float cc=cos(gamm);
     float sa=sin(alpha);
     float sb=sin(beta);
-    float sc=sin(gamma);
+    float sc=sin(gamm);
 
     rmx[0][0]=cc*cb;
     rmx[0][1]=cc*sb*sa-sc*ca;
@@ -203,10 +218,34 @@ void vrotate(vec3 *v1,vec3f v, float f0, float f1, float f2) {
     v1->z=(int)(rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z);
 }
 
-#define PI 3.1415926
-float alpha=PI/2;
-float beta=0;
-float gamm=0;
+void bezier(vec3 p[4][4], vec3 np[7][7]) {
+    vec3 t[4][7];
+    for(int i=0;i<4;i++) {
+        t[i][0]=p[i][0];
+        t[i][6]=p[i][3];
+        vec3 m=mid3d(p[i][1],p[i][2]);
+        t[i][1]=mid3d(p[i][0],p[i][1]);
+        t[i][5]=mid3d(p[i][2],p[i][3]);
+        t[i][2]=mid3d(t[i][1],m);
+        t[i][4]=mid3d(t[i][5],m);
+        t[i][3]=mid3d(t[i][2],t[i][4]);
+    }
+    for(int i=0;i<7;i++) {
+        np[0][i]=t[0][i];
+        np[6][i]=t[3][i];
+        vec3 m=mid3d(t[1][i],t[2][i]);
+        np[1][i]=mid3d(t[0][i],t[1][i]);
+        np[5][i]=mid3d(t[2][i],t[3][i]);
+        np[2][i]=mid3d(np[1][i],m);
+        np[4][i]=mid3d(np[5][i],m);
+        np[3][i]=mid3d(np[2][i],np[4][i]);
+    }
+}
+vec3 np[7][7];
+vec3 nq[7][7];
+vec3 nr[7][7];
+vec3 ns[7][7];
+
 void draw_teapot() {
     int order1[]={5,6,0,1,2,3,4,7,8};
     int order2[]={7,8,0,1,2,3,4,5,6};
@@ -231,20 +270,64 @@ void draw_teapot() {
                 }
             }
         }
-        for(int j=1;j<4;j++) {
-            for(int k=1;k<4;k++) {
-                draw_quad_3d(p[j-1][k-1],p[j-1][k],p[j][k],p[j][k-1]);
-                draw_quad_3d(q[j-1][k-1],q[j-1][k],q[j][k],q[j][k-1]);
-                if(ii<6) {
-                    draw_quad_3d(r[j-1][k-1],r[j-1][k],r[j][k],r[j][k-1]);
-                    draw_quad_3d(s[j-1][k-1],s[j-1][k],s[j][k],s[j][k-1]);
+
+        bezier(p,np);
+        bezier(q,nq);
+        if(ii<5) {
+            bezier(r,nr);
+            bezier(s,ns);
+        }
+        for(int j=1;j<7;j++) {
+            for(int k=1;k<7;k++) {
+                draw_quad_3d(np[j-1][k-1],np[j-1][k],np[j][k],np[j][k-1]);
+                draw_quad_3d(nq[j-1][k-1],nq[j-1][k],nq[j][k],nq[j][k-1]);
+                if(ii<5) {
+                    draw_quad_3d(nr[j-1][k-1],nr[j-1][k],nr[j][k],nr[j][k-1]);
+                    draw_quad_3d(ns[j-1][k-1],ns[j-1][k],ns[j][k],ns[j][k-1]);
                 }
             }
         }
     }
 }
 
-
+void teapots_demo() {
+    int nteapots=20;
+    float a[nteapots],b[nteapots];
+    float x[nteapots],y[nteapots];
+    int s[nteapots];
+    colourtype col[nteapots];
+    for(int i=0;i<nteapots; i++) {
+        a[i]=(rand()%31415)/5000.0;
+        b[i]=(rand()%31415)/5000.0;
+        x[i]=rand()%(display_width-20)+10;
+        y[i]=rand()%(display_height-20)+10;
+        col[i].r=50*(i&4);
+        col[i].g=100*(i&2);
+        col[i].b=200*(i&1);
+        s[i]=rand()%10+6;
+        if((i&7)==0) col[i].g=100;
+    }
+    while(1) {
+        cls(0);
+        for(int i=0;i<nteapots; i++) {
+            diffuse=col[i];
+            //alpha=0;
+            beta=a[i];
+            gamm=b[i];
+            offsetx=x[i];
+            offsety=y[i];
+            SZ=s[i]<<16;
+            maketrotationmatrix();
+            draw_teapot();
+            a[i]+=0.05;
+            if(a[i]>2*PI) a[i]=a[i]-2*PI;
+            b[i]+=0.07;
+        }
+        flip_frame();
+        int key=get_input();
+        if(key==0) return;
+    }
+}
 
 // menu with a rotating cube, because... why not.
 int demo_menu(int select) {
@@ -262,7 +345,7 @@ int demo_menu(int select) {
         };
         */
         for(int frame=0;frame < 4000; frame++) {
-            maketrotationmatrix(alpha,beta,gamm);
+            maketrotationmatrix();
             //alpha+=0.01;
             beta+=0.02;
             if(beta>2*PI) beta=beta-2*PI;
@@ -327,7 +410,7 @@ int demo_menu(int select) {
             print_xy("Life",10,LASTY+21);
             print_xy("Image Wave",10,LASTY+18);
             print_xy("Spaceship",10,LASTY+18);
-            print_xy("Sensors",10,LASTY+18);
+            print_xy("Teapots",10,LASTY+18);
             if(get_orientation())
                 print_xy("Landscape",10,LASTY+18);
             else
@@ -451,7 +534,7 @@ void app_main() {
                 graphics_demo();
                 break;
             case 3:
-                sensors_demo();
+                teapots_demo();
                 break;
             case 4:
                 set_orientation(1-get_orientation());
