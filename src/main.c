@@ -78,24 +78,23 @@ typedef struct { int x; int y; int z;} vec3;
 int offsetx;
 int offsety;
 
-void point3d_to_xy(vec3 *p, int16_t *xx, int16_t *yy) {
-    int x=p->x>>16;
-    int y=p->y>>16;
-    int z=p->z>>16;
-    x=x+((z*x)>>9)+offsetx;
-    y=y+((z*y)>>9)+offsety;
+inline void point3d_to_xy(vec3f *p, int16_t *xx, int16_t *yy) {
+    int x=p->x;
+    int y=p->y;
+    x=x+((int)(p->z*p->x)>>8)+offsetx;
+    y=y+((int)(p->z*p->y)>>8)+offsety;
     *xx=x;
     *yy=y;
 }
 
-void draw_line_3d(vec3 p0, vec3 p1, uint16_t colour) {
+void draw_line_3d(vec3f p0, vec3f p1, uint16_t colour) {
     int16_t x[2],y[2];
     point3d_to_xy(&p0,&x[0],&y[0]);
     point3d_to_xy(&p1,&x[1],&y[1]);
     draw_line(x[0],y[0],x[1],y[1], colour);
 }
 
-void draw_triangle_3d(vec3 p0, vec3 p1, vec3 p2, uint16_t colour) {
+void draw_triangle_3d(vec3f p0, vec3f p1, vec3f p2, uint16_t colour) {
     int16_t x[3],y[3];
     point3d_to_xy(&p0,&x[0],&y[0]);
     point3d_to_xy(&p1,&x[1],&y[1]);
@@ -103,26 +102,26 @@ void draw_triangle_3d(vec3 p0, vec3 p1, vec3 p2, uint16_t colour) {
     draw_triangle(x[0],y[0],x[1],y[1],x[2],y[2], colour);
 }
 
-inline vec3 sub3d(vec3 p0, vec3 p1) {
-    vec3 p={p0.x-p1.x, p0.y-p1.y, p0.z-p1.z};
+inline vec3f sub3d(vec3f p0, vec3f p1) {
+    vec3f p={p0.x-p1.x, p0.y-p1.y, p0.z-p1.z};
     return p;
 }
 
-inline vec3 add3d(vec3 p0, vec3 p1) {
-    vec3 p={p0.x+p1.x, p0.y+p1.y, p0.z+p1.z};
+inline vec3f add3d(vec3f p0, vec3f p1) {
+    vec3f p={p0.x+p1.x, p0.y+p1.y, p0.z+p1.z};
     return p;
 }
 
-inline vec3 mid3d(vec3 p0, vec3 p1) {
-    vec3 p={(p0.x+p1.x)/2, (p0.y+p1.y)/2, (p0.z+p1.z)/2};
+inline vec3f mid3d(vec3f p0, vec3f p1) {
+    vec3f p={(p0.x+p1.x)/2, (p0.y+p1.y)/2, (p0.z+p1.z)/2};
     return p;
 }
 
-inline vec3 cross3d(vec3 p0, vec3 p1) {
-    vec3 p;
-    p.x=(p0.y>>16)*(p1.z>>16)-(p0.z>>16)*(p1.y>>16);
-    p.y=(p0.z>>16)*(p1.x>>16)-(p0.x>>16)*(p1.z>>16);
-    p.z=(p0.x>>16)*(p1.y>>16)-(p0.y>>16)*(p1.x>>16);
+inline vec3f cross3d(vec3f p0, vec3f p1) {
+    vec3f p;
+    p.x=(p0.y)*(p1.z)-(p0.z)*(p1.y);
+    p.y=(p0.z)*(p1.x)-(p0.x)*(p1.z);
+    p.z=(p0.x)*(p1.y)-(p0.y)*(p1.x);
     return p;
 }
 
@@ -140,16 +139,14 @@ inline float Q_rsqrt( float number )
 	return conv.f;
 }
 
-vec3 normalise(vec3 p) {
+inline vec3f normalise(vec3f p) {
     float mag=Q_rsqrt(p.x*p.x+p.y*p.y+p.z*p.z);
-
-    //mag=1.0/sqrtf((float)(p.x*p.x+p.y*p.y+p.z*p.z));
-    vec3 p1={(p.x*256)*mag, (p.y*256)*mag, (p.z*256)*mag};
+    vec3f p1={(p.x)*mag, (p.y)*mag, (p.z)*mag};
     return p1;
 }
 
-int dot(vec3 p0,vec3 p1) {
-    return ((p0.x*p1.x)>>8)+((p0.y*p1.y)>>8)+((p0.z*p1.z)>>8);
+inline float dot(vec3f p0,vec3f p1) {
+    return ((p0.x*p1.x))+((p0.y*p1.y))+((p0.z*p1.z));
 }
 
 inline int clamp(int x,int min,int max) {
@@ -158,15 +155,21 @@ inline int clamp(int x,int min,int max) {
     return x;
 }
 
-vec3 lightpos={0,0,255};
+inline float clampf(float x,float min,float max) {
+    if(x<min) return min;
+    if(x>max) return max;
+    return x;
+}
+
+vec3f lightpos={0,0,1.0};
 
 
-int SZ=(15<<16);
+float teapot_size=20;
 
 float rmx[3][3];
 
 #define PI 3.1415926
-float alpha=PI/2;
+float alpha=PI/2-0.2;
 float beta=0;
 float gamm=0;
 
@@ -193,37 +196,42 @@ colourtype ambiant={64,0,64};
 colourtype diffuse={20,220,40};
 
 
-void draw_quad_3d(vec3 p0, vec3 p1, vec3 p2, vec3 p3) {
+void draw_quad_3d(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
 
-    vec3 normal=normalise(cross3d(sub3d(p1,p0),sub3d(p3,p0)));
-    if(normal.z<0) return;
+    vec3f normal=normalise(cross3d(sub3d(p2,p0),sub3d(p3,p0)));
+    if(normal.z<=0) return;
 
-    int light=clamp(dot(normal,lightpos),0,255);
+    float light=clampf(dot(normal,lightpos),0,1.0);
 
-    uint16_t colour=rgbToColour(clamp(((diffuse.r*light)>>8)+ambiant.r,0,255),
-    clamp(((diffuse.g*light)>>8)+ambiant.g,0,255),
-    clamp(((diffuse.b*light)>>8)+ambiant.b,0,255));
-//                     (green*light)>>8, (blue*light)>>8);
-
-    draw_triangle_3d(p0, p1, p2, colour);
-    draw_triangle_3d(p2, p3, p0, colour);
+    uint16_t colour=rgbToColour(clamp(((int)(diffuse.r*light))+ambiant.r,0,255),
+    clamp((int)(diffuse.g*light)+ambiant.g,0,255),
+    clamp((int)(diffuse.b*light)+ambiant.b,0,255));
+    int16_t x[4],y[4];
+    point3d_to_xy(&p0,&x[0],&y[0]);
+    point3d_to_xy(&p1,&x[1],&y[1]);
+    point3d_to_xy(&p2,&x[2],&y[2]);
+    point3d_to_xy(&p3,&x[3],&y[3]);
+    draw_triangle(x[0],y[0],x[1],y[1],x[2],y[2], colour);
+    draw_triangle(x[2],y[2],x[3],y[3],x[0],y[0], colour);
+//    draw_triangle_3d(p0, p1, p2, colour);
+//   draw_triangle_3d(p2, p3, p0, colour);
 }
 
-void vrotate(vec3 *v1,vec3f v, float f0, float f1, float f2) {
+void vrotate(vec3f *v1,vec3f v, float f0, float f1, float f2) {
     v.x=v.x*f0;
     v.y=v.y*f1;
     v.z=(v.z-2.0)*f2;
-    v1->x=(int)(rmx[0][0]*v.x+rmx[0][1]*v.y+rmx[0][2]*v.z);
-    v1->y=(int)(rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z);
-    v1->z=(int)(rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z);
+    v1->x=(rmx[0][0]*v.x+rmx[0][1]*v.y+rmx[0][2]*v.z);
+    v1->y=(rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z);
+    v1->z=(rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z);
 }
 
-void bezier(vec3 p[4][4], vec3 np[7][7]) {
-    vec3 t[4][7];
+void bezier(vec3f p[4][4], vec3f np[7][7]) {
+    vec3f t[4][7];
     for(int i=0;i<4;i++) {
         t[i][0]=p[i][0];
         t[i][6]=p[i][3];
-        vec3 m=mid3d(p[i][1],p[i][2]);
+        vec3f m=mid3d(p[i][1],p[i][2]);
         t[i][1]=mid3d(p[i][0],p[i][1]);
         t[i][5]=mid3d(p[i][2],p[i][3]);
         t[i][2]=mid3d(t[i][1],m);
@@ -233,7 +241,7 @@ void bezier(vec3 p[4][4], vec3 np[7][7]) {
     for(int i=0;i<7;i++) {
         np[0][i]=t[0][i];
         np[6][i]=t[3][i];
-        vec3 m=mid3d(t[1][i],t[2][i]);
+        vec3f m=mid3d(t[1][i],t[2][i]);
         np[1][i]=mid3d(t[0][i],t[1][i]);
         np[5][i]=mid3d(t[2][i],t[3][i]);
         np[2][i]=mid3d(np[1][i],m);
@@ -241,49 +249,57 @@ void bezier(vec3 p[4][4], vec3 np[7][7]) {
         np[3][i]=mid3d(np[2][i],np[4][i]);
     }
 }
-vec3 np[7][7];
-vec3 nq[7][7];
-vec3 nr[7][7];
-vec3 ns[7][7];
+
 
 void draw_teapot() {
-    int order1[]={5,6,0,1,2,3,4,7,8};
-    int order2[]={7,8,0,1,2,3,4,5,6};
 
-    for(int i=0;i<9;i++) {
-        int ii;
-        if(beta>PI) ii=order1[i];
-        else ii=order2[i];
-        vec3 p[4][4];
-        vec3 q[4][4];
-        vec3 r[4][4];
-        vec3 s[4][4];
+    static vec3f np[7][7];
+    static vec3f p[4][4];
+    float z[32];
+    int order[32];
+    for(int i=0;i<32;i++) {
+        order[i]=i;
+        vec3f zv1,zv2;
+        vrotate(&zv1,teapotVertices[teapotPatches[i][5]-1],teapot_size,teapot_size,teapot_size);
+        vrotate(&zv2,teapotVertices[teapotPatches[i][10]-1],teapot_size,teapot_size,teapot_size);
+        z[i]=mid3d(zv1,zv2).z;
+    }
+    for (int k = 2; k <= 32; k *= 2) 
+        for (int j = k/2; j > 0; j /= 2) 
+            for (int i = 0; i < 32; i++) {
+                int l = (i ^ j);
+                if (l > i)
+                    if (  (((i & k) == 0) && (z[i] > z[l]))
+                       || (((i & k) != 0) && (z[i] < z[l])) ) {
+                           float t=z[i];
+                           z[i]=z[l];
+                           z[l]=t;
+                           int ti=order[i];
+                           order[i]=order[l];
+                           order[l]=ti;
+                       }
+            }
+
+    for(int i=0;i<32;i++) {
+        int ii=order[i];
+        
         for(int j=0;j<4;j++) {
             for(int k=0;k<4; k++) {
-                vrotate(&p[j][k],teapot_v[patches[ii][j*4+k]],SZ,SZ,SZ);
-                vrotate(&q[j][k],teapot_v[patches[ii][j*4+3-k]],SZ,-SZ,SZ);
+                vrotate(&p[j][k],teapotVertices[teapotPatches[ii][j*4+k]-1],teapot_size,teapot_size,teapot_size);
             }
-            if(ii<5) {
-                for(int k=0;k<4; k++) {
-                    vrotate(&r[j][k],teapot_v[patches[ii][j*4+3-k]],-SZ,SZ,SZ);
-                    vrotate(&s[j][k],teapot_v[patches[ii][j*4+k]],-SZ,-SZ,SZ);
+        }
+        bezier(p,np);
+        
+        if(np[0][0].z<np[6][6].z) {
+            for(int j=1;j<7;j++) {
+                for(int k=1;k<7;k++) {
+                    draw_quad_3d(np[j-1][k-1],np[j-1][k],np[j][k],np[j][k-1]);
                 }
             }
-        }
-
-        bezier(p,np);
-        bezier(q,nq);
-        if(ii<5) {
-            bezier(r,nr);
-            bezier(s,ns);
-        }
-        for(int j=1;j<7;j++) {
-            for(int k=1;k<7;k++) {
-                draw_quad_3d(np[j-1][k-1],np[j-1][k],np[j][k],np[j][k-1]);
-                draw_quad_3d(nq[j-1][k-1],nq[j-1][k],nq[j][k],nq[j][k-1]);
-                if(ii<5) {
-                    draw_quad_3d(nr[j-1][k-1],nr[j-1][k],nr[j][k],nr[j][k-1]);
-                    draw_quad_3d(ns[j-1][k-1],ns[j-1][k],ns[j][k],ns[j][k-1]);
+        } else {
+            for(int j=6;j>0;j--) {
+                for(int k=6;k>0;k--) {
+                    draw_quad_3d(np[j-1][k-1],np[j-1][k],np[j][k],np[j][k-1]);
                 }
             }
         }
@@ -291,21 +307,23 @@ void draw_teapot() {
 }
 
 void teapots_demo() {
-    int nteapots=20;
+    int nteapots=10;
     float a[nteapots],b[nteapots];
     float x[nteapots],y[nteapots];
     int s[nteapots];
+    int64_t current_time=0, last_time=0;
+    int frame=0;
     colourtype col[nteapots];
     for(int i=0;i<nteapots; i++) {
         a[i]=(rand()%31415)/5000.0;
         b[i]=(rand()%31415)/5000.0;
         x[i]=rand()%(display_width-20)+10;
         y[i]=rand()%(display_height-20)+10;
-        col[i].r=50*(i&4);
-        col[i].g=100*(i&2);
-        col[i].b=200*(i&1);
-        s[i]=rand()%10+6;
-        if((i&7)==0) col[i].g=100;
+        col[i].r=rand()%200+55;//50*(i&4);
+        col[i].g=rand()%200+55;//100*(i&2);
+        col[i].b=rand()%200+55;//200*(i&1);
+        s[i]=rand()%10+10;
+        //if((i&7)==0) col[i].g=100;
     }
     while(1) {
         cls(0);
@@ -316,7 +334,7 @@ void teapots_demo() {
             gamm=b[i];
             offsetx=x[i];
             offsety=y[i];
-            SZ=s[i]<<16;
+            teapot_size=s[i];
             maketrotationmatrix();
             draw_teapot();
             a[i]+=0.05;
@@ -324,6 +342,13 @@ void teapots_demo() {
             b[i]+=0.07;
         }
         flip_frame();
+        current_time = esp_timer_get_time();
+        if ((frame++ % 10) == 0) {
+            printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
+            vTaskDelay(1);
+        }
+        last_time=current_time;
+        teapot_size=20;
         int key=get_input();
         if(key==0) return;
     }
@@ -346,7 +371,7 @@ int demo_menu(int select) {
         */
         for(int frame=0;frame < 4000; frame++) {
             maketrotationmatrix();
-            //alpha+=0.01;
+            alpha+=0.01;
             beta+=0.02;
             if(beta>2*PI) beta=beta-2*PI;
             gamm+=0.017;
