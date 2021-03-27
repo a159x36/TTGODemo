@@ -73,48 +73,61 @@ int get_input() {
 }
 
 typedef struct { int x; int y; int z;} vec3;
-
+typedef struct { int16_t x; int16_t y;} vec2;
 
 int offsetx;
 int offsety;
 
-inline void point3d_to_xy(vec3f *p, int16_t *xx, int16_t *yy) {
-    int x=p->x;
-    int y=p->y;
-    x=x+((int)(p->z*p->x)>>8)+offsetx;
-    y=y+((int)(p->z*p->y)>>8)+offsety;
-    *xx=x;
-    *yy=y;
+inline int clamp(int x,int min,int max) {
+    const int t = x < min ? min : x;
+    return t > max ? max : t;
+}
+
+inline float clampf(float x,float min,float max) {
+    const float t = x < min ? min : x;
+    return t > max ? max : t;
+}
+
+vec3f lightpos={0,0,1.0};
+
+float teapot_size=20;
+
+float rmx[3][3];
+
+#define PI 3.1415926
+
+vec3f rotation={PI/2-0.2,0,0};
+
+inline vec2 point3d_to_xy(vec3f p) {
+    return (vec2){clamp((int)p.x+((int)(p.z*p.x)>>8)+offsetx,0,display_width),
+                  clamp((int)p.y+((int)(p.z*p.y)>>8)+offsety,0,display_height)};
 }
 
 void draw_line_3d(vec3f p0, vec3f p1, uint16_t colour) {
-    int16_t x[2],y[2];
-    point3d_to_xy(&p0,&x[0],&y[0]);
-    point3d_to_xy(&p1,&x[1],&y[1]);
-    draw_line(x[0],y[0],x[1],y[1], colour);
+    vec2 a,b;
+    a=point3d_to_xy(p0);
+    b=point3d_to_xy(p1);
+    draw_line(a.x,a.y,b.x,b.y, colour);
 }
 
 void draw_triangle_3d(vec3f p0, vec3f p1, vec3f p2, uint16_t colour) {
-    int16_t x[3],y[3];
-    point3d_to_xy(&p0,&x[0],&y[0]);
-    point3d_to_xy(&p1,&x[1],&y[1]);
-    point3d_to_xy(&p2,&x[2],&y[2]);
-    draw_triangle(x[0],y[0],x[1],y[1],x[2],y[2], colour);
+    vec2 a,b,c;
+    a=point3d_to_xy(p0);
+    b=point3d_to_xy(p1);
+    c=point3d_to_xy(p2);
+    draw_triangle(a.x,a.y,b.x,b.y,c.x,c.y, colour);
 }
 
 inline vec3f sub3d(vec3f p0, vec3f p1) {
-    vec3f p={p0.x-p1.x, p0.y-p1.y, p0.z-p1.z};
-    return p;
+    return (vec3f){p0.x-p1.x, p0.y-p1.y, p0.z-p1.z};
 }
 
 inline vec3f add3d(vec3f p0, vec3f p1) {
-    vec3f p={p0.x+p1.x, p0.y+p1.y, p0.z+p1.z};
-    return p;
+    return (vec3f){p0.x+p1.x, p0.y+p1.y, p0.z+p1.z};
 }
 
 inline vec3f mid3d(vec3f p0, vec3f p1) {
-    vec3f p={(p0.x+p1.x)/2, (p0.y+p1.y)/2, (p0.z+p1.z)/2};
-    return p;
+    return (vec3f){(p0.x+p1.x)/2, (p0.y+p1.y)/2, (p0.z+p1.z)/2};
 }
 
 inline vec3f cross3d(vec3f p0, vec3f p1) {
@@ -141,45 +154,21 @@ inline float Q_rsqrt( float number )
 
 inline vec3f normalise(vec3f p) {
     float mag=Q_rsqrt(p.x*p.x+p.y*p.y+p.z*p.z);
-    vec3f p1={(p.x)*mag, (p.y)*mag, (p.z)*mag};
-    return p1;
+    return (vec3f){(p.x)*mag, (p.y)*mag, (p.z)*mag};
 }
 
 inline float dot(vec3f p0,vec3f p1) {
     return ((p0.x*p1.x))+((p0.y*p1.y))+((p0.z*p1.z));
 }
 
-inline int clamp(int x,int min,int max) {
-    if(x<min) return min;
-    if(x>max) return max;
-    return x;
-}
-
-inline float clampf(float x,float min,float max) {
-    if(x<min) return min;
-    if(x>max) return max;
-    return x;
-}
-
-vec3f lightpos={0,0,1.0};
-
-
-float teapot_size=20;
-
-float rmx[3][3];
-
-#define PI 3.1415926
-float alpha=PI/2-0.2;
-float beta=0;
-float gamm=0;
 
 inline void maketrotationmatrix() {
-    float ca=cos(alpha);
-    float cb=cos(beta);
-    float cc=cos(gamm);
-    float sa=sin(alpha);
-    float sb=sin(beta);
-    float sc=sin(gamm);
+    float ca=cos(rotation.x);
+    float cb=cos(rotation.y);
+    float cc=cos(rotation.z);
+    float sa=sin(rotation.x);
+    float sb=sin(rotation.y);
+    float sc=sin(rotation.z);
 
     rmx[0][0]=cc*cb;
     rmx[0][1]=cc*sb*sa-sc*ca;
@@ -195,7 +184,50 @@ typedef struct {uint16_t r; uint16_t g; uint16_t b;} colourtype;
 colourtype ambiant={64,0,64};
 colourtype diffuse={20,220,40};
 
+typedef  struct {uint8_t p[8]; uint16_t col; int16_t z;} quadtype;
 
+#define MAXQUADS 24*32
+
+int nquads;
+quadtype quads[MAXQUADS];
+
+void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
+    if(nquads>=MAXQUADS) return;
+    vec3f normal=normalise(cross3d(sub3d(p2,p0),sub3d(p3,p0)));
+    if(normal.z<=0) return;
+
+    float light=clampf(dot(normal,lightpos),0,1.0);
+
+    uint16_t colour=rgbToColour(clamp(((int)(diffuse.r*light))+ambiant.r,0,255),
+                    clamp((int)(diffuse.g*light)+ambiant.g,0,255),
+                    clamp((int)(diffuse.b*light)+ambiant.b,0,255));
+    vec2 a,b,c,d;
+    a=point3d_to_xy(p0);
+    b=point3d_to_xy(p1);
+    c=point3d_to_xy(p2);
+    d=point3d_to_xy(p3);
+    
+    quads[nquads++]=(quadtype){{a.x,a.y,b.x,b.y,c.x,c.y,d.x,d.y},
+                        colour,(p0.z+p1.z+p2.z+p3.z)*16};
+}
+
+int cmpquad(const void * a, const void * b) {
+   return ( ((quadtype *)a)->z - ((quadtype *)b)->z );
+}
+
+void sort_quads() {
+    qsort(quads, nquads, sizeof(quadtype), cmpquad);    
+}
+
+void draw_all_quads() {
+    sort_quads();
+    for(int i=0;i<nquads;i++) {
+        quadtype q=quads[i];
+        draw_triangle(q.p[0],q.p[1],q.p[2],q.p[3],q.p[4],q.p[5],q.col);
+        draw_triangle(q.p[4],q.p[5],q.p[6],q.p[7],q.p[0],q.p[1],q.col);
+    }
+}
+/*
 void draw_quad_3d(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
 
     vec3f normal=normalise(cross3d(sub3d(p2,p0),sub3d(p3,p0)));
@@ -206,24 +238,22 @@ void draw_quad_3d(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     uint16_t colour=rgbToColour(clamp(((int)(diffuse.r*light))+ambiant.r,0,255),
     clamp((int)(diffuse.g*light)+ambiant.g,0,255),
     clamp((int)(diffuse.b*light)+ambiant.b,0,255));
-    int16_t x[4],y[4];
-    point3d_to_xy(&p0,&x[0],&y[0]);
-    point3d_to_xy(&p1,&x[1],&y[1]);
-    point3d_to_xy(&p2,&x[2],&y[2]);
-    point3d_to_xy(&p3,&x[3],&y[3]);
-    draw_triangle(x[0],y[0],x[1],y[1],x[2],y[2], colour);
-    draw_triangle(x[2],y[2],x[3],y[3],x[0],y[0], colour);
-//    draw_triangle_3d(p0, p1, p2, colour);
-//   draw_triangle_3d(p2, p3, p0, colour);
+    vec2 a,b,c,d;
+    a=point3d_to_xy(p0);
+    b=point3d_to_xy(p1);
+    c=point3d_to_xy(p2);
+    d=point3d_to_xy(p3);
+    draw_triangle(a.x,a.y,b.x,b.y,c.x,c.y, colour);
+    draw_triangle(c.x,c.y,d.x,d.y,a.x,a.y, colour);
 }
-
-void vrotate(vec3f *v1,vec3f v, float f0, float f1, float f2) {
+*/
+inline vec3f vrotate(vec3f v, float f0, float f1, float f2) {
     v.x=v.x*f0;
     v.y=v.y*f1;
     v.z=(v.z-2.0)*f2;
-    v1->x=(rmx[0][0]*v.x+rmx[0][1]*v.y+rmx[0][2]*v.z);
-    v1->y=(rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z);
-    v1->z=(rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z);
+    return (vec3f){ (rmx[0][0]*v.x+rmx[0][1]*v.y+rmx[0][2]*v.z),
+                    (rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z),
+                    (rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z)};
 }
 
 void bezier(vec3f p[4][4], vec3f np[7][7]) {
@@ -251,100 +281,72 @@ void bezier(vec3f p[4][4], vec3f np[7][7]) {
 }
 
 
-void draw_teapot() {
+void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col) {
 
     static vec3f np[7][7];
     static vec3f p[4][4];
-    float z[32];
-    int order[32];
-    for(int i=0;i<32;i++) {
-        order[i]=i;
-        vec3f zv1,zv2;
-        vrotate(&zv1,teapotVertices[teapotPatches[i][5]-1],teapot_size,teapot_size,teapot_size);
-        vrotate(&zv2,teapotVertices[teapotPatches[i][10]-1],teapot_size,teapot_size,teapot_size);
-        z[i]=mid3d(zv1,zv2).z;
-    }
-    for (int k = 2; k <= 32; k *= 2) 
-        for (int j = k/2; j > 0; j /= 2) 
-            for (int i = 0; i < 32; i++) {
-                int l = (i ^ j);
-                if (l > i)
-                    if (  (((i & k) == 0) && (z[i] > z[l]))
-                       || (((i & k) != 0) && (z[i] < z[l])) ) {
-                           float t=z[i];
-                           z[i]=z[l];
-                           z[l]=t;
-                           int ti=order[i];
-                           order[i]=order[l];
-                           order[l]=ti;
-                       }
-            }
-
-    for(int i=0;i<32;i++) {
-        int ii=order[i];
-        
+    diffuse=col;
+    rotation=rot;
+    offsetx=pos.x;
+    offsety=pos.y;
+    teapot_size=size;
+    maketrotationmatrix();
+    // 28-32=base
+    // 20-28=lid
+    // 16-20=spout 16=r, 17=l
+    nquads=0;
+    for(int ii=0;ii<32;ii++) {
         for(int j=0;j<4;j++) {
             for(int k=0;k<4; k++) {
-                vrotate(&p[j][k],teapotVertices[teapotPatches[ii][j*4+k]-1],teapot_size,teapot_size,teapot_size);
+                p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1],teapot_size,teapot_size,teapot_size);
             }
         }
         bezier(p,np);
-        
-        if(np[0][0].z<np[6][6].z) {
-            for(int j=1;j<7;j++) {
-                for(int k=1;k<7;k++) {
-                    draw_quad_3d(np[j-1][k-1],np[j-1][k],np[j][k],np[j][k-1]);
-                }
-            }
-        } else {
-            for(int j=6;j>0;j--) {
-                for(int k=6;k>0;k--) {
-                    draw_quad_3d(np[j-1][k-1],np[j-1][k],np[j][k],np[j][k-1]);
-                }
+        for(int j=1;j<7;j++) {
+            for(int k=1;k<7;k++) {
+                add_quad(np[j-1][k-1],np[j-1][k],np[j][k],np[j][k-1]);
             }
         }
     }
+    draw_all_quads();
 }
 
 void teapots_demo() {
     int nteapots=10;
-    float a[nteapots],b[nteapots];
-    float x[nteapots],y[nteapots];
+    vec3f rot[nteapots];
+    vec2 pos[nteapots];
     int s[nteapots];
     int64_t current_time=0, last_time=0;
     int frame=0;
     colourtype col[nteapots];
     for(int i=0;i<nteapots; i++) {
-        a[i]=(rand()%31415)/5000.0;
-        b[i]=(rand()%31415)/5000.0;
-        x[i]=rand()%(display_width-20)+10;
-        y[i]=rand()%(display_height-20)+10;
-        col[i].r=rand()%200+55;//50*(i&4);
-        col[i].g=rand()%200+55;//100*(i&2);
-        col[i].b=rand()%200+55;//200*(i&1);
-        s[i]=rand()%10+10;
+        rot[i]=(vec3f){(rand()%31415)/5000.0,
+                (rand()%31415)/5000.0,
+                (rand()%31415)/5000.0};
+        pos[i]=(vec2){rand()%(display_width-20)+10,
+                rand()%(display_height-20)+10};
+        col[i]=(colourtype){rand()%100+155,
+                rand()%100+155,
+                rand()%100+155};
+        int m=rand()%8;
+        if(m==7) m=0;
+        if(m&1) col[i].r/=8;
+        if(m&2) col[i].g/=8;
+        if(m&4) col[i].b/=8;
+        
+        s[i]=rand()%20+10;
         //if((i&7)==0) col[i].g=100;
     }
     while(1) {
         cls(0);
         for(int i=0;i<nteapots; i++) {
-            diffuse=col[i];
-            //alpha=0;
-            beta=a[i];
-            gamm=b[i];
-            offsetx=x[i];
-            offsety=y[i];
-            teapot_size=s[i];
-            maketrotationmatrix();
-            draw_teapot();
-            a[i]+=0.05;
-            if(a[i]>2*PI) a[i]=a[i]-2*PI;
-            b[i]+=0.07;
+            draw_teapot(pos[i],s[i],rot[i],col[i]);
+            rot[i]=add3d(rot[i],(vec3f){0.0523,0.0354,0.0714});
         }
         flip_frame();
         current_time = esp_timer_get_time();
         if ((frame++ % 10) == 0) {
-            printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
+            printf("FPS:%f %d %d\n", 1.0e6 / (current_time - last_time),frame, sizeof(quadtype));
             vTaskDelay(1);
         }
         last_time=current_time;
@@ -370,11 +372,10 @@ int demo_menu(int select) {
         };
         */
         for(int frame=0;frame < 4000; frame++) {
-            maketrotationmatrix();
-            alpha+=0.01;
-            beta+=0.02;
-            if(beta>2*PI) beta=beta-2*PI;
-            gamm+=0.017;
+            //maketrotationmatrix();
+            rotation.x+=0.01;
+            rotation.y+=0.02;
+            rotation.z+=0.017;
             cls(rgbToColour(100,20,20));
             setFont(FONT_DEJAVU18);
             setFontColour(255, 255, 255);
@@ -422,7 +423,7 @@ int demo_menu(int select) {
 
             extern image_header  bubble;
             draw_image(&bubble,bx,by);
-            draw_teapot();
+            draw_teapot((vec2){offsetx, offsety},teapot_size,rotation,diffuse);
             bx+=vbx;
             by+=vby;
             if(bx<bubble.width/2 || bx+bubble.width/2>display_width) {vbx=-vbx;bx+=vbx;}
