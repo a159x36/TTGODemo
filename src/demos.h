@@ -4,6 +4,7 @@ void graphics_demo();
 void display();
 int get_input();
 void sensors_demo();
+void teapots_demo();
 
 // put your wifi ssid name and password in here
 #define WIFI_SSID ""

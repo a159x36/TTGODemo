@@ -7,12 +7,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <math.h>
 #include <esp_log.h>
 #include <esp_sntp.h>
 #include "fonts.h"
 #include "image_wave.h"
+#include "graphics3d.h"
 #include <graphics.h>
 #include "demos.h"
 #include <driver/adc.h>
@@ -165,6 +165,46 @@ void display() {
     }
 }
 
-void sensors_demo() {
-    
+void teapots_demo() {
+    int nteapots=10;
+    vec3f rot[nteapots];
+    vec2 pos[nteapots];
+    int s[nteapots];
+    int64_t current_time=0, last_time=0;
+    int frame=0;
+    colourtype col[nteapots];
+    for(int i=0;i<nteapots; i++) {
+        rot[i]=(vec3f){(rand()%31415)/5000.0,
+                (rand()%31415)/5000.0,
+                (rand()%31415)/5000.0};
+        pos[i]=(vec2){rand()%(display_width-20)+10,
+                rand()%(display_height-20)+10};
+        col[i]=(colourtype){rand()%100+155,
+                rand()%100+155,
+                rand()%100+155};
+        int m=rand()%8;
+        if(m==7) m=0;
+        if(m&1) col[i].r/=8;
+        if(m&2) col[i].g/=8;
+        if(m&4) col[i].b/=8;
+        
+        s[i]=rand()%20+10;
+        //if((i&7)==0) col[i].g=100;
+    }
+    while(1) {
+        cls(0);//rgbToColour(0x87,0xce,0xeb));
+        for(int i=0;i<nteapots; i++) {
+            draw_teapot(pos[i],s[i],rot[i],col[i]);
+            rot[i]=add3d(rot[i],(vec3f){0.0523,0.0354,0.0714});
+        }
+        flip_frame();
+        current_time = esp_timer_get_time();
+        if ((frame++ % 10) == 0) {
+            printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
+            vTaskDelay(1);
+        }
+        last_time=current_time;
+        int key=get_input();
+        if(key==0) return;
+    }
 }
