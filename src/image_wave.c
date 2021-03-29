@@ -65,19 +65,13 @@ void image_wave_calc_lines(uint16_t *dest, int line, int frame, int linect) {
 }
 extern image_header  albany_image;
 
-esp_err_t image_wave_init(int copy_to_ram) {    
+esp_err_t image_wave_init() {    
     image_w=albany_image.width;
     image_h=albany_image.height;
     pixels=calloc(image_h, sizeof(uint16_t *));
     for(int i=0;i<image_h;i++) {
         uint16_t *line_start=(uint16_t *)&albany_image+6+image_w*i;
-        if(!copy_to_ram)
-            pixels[i]=line_start;
-        else {
-            pixels[i]=malloc(image_w*2);
-            memcpy(pixels[i],line_start,image_w*2);
-        }
+        pixels[i]=line_start;
     }
-//    return decode_image(&pixels, &image_w, &image_h);
     return 0;
 }

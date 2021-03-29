@@ -118,12 +118,16 @@ int demo_menu(int select) {
                 print_xy("Landscape",10,LASTY+18);
             else
                 print_xy("Portrait",10,LASTY+18);
-            send_frame();
             wait_frame();
+            send_frame();
             current_time = esp_timer_get_time();
             if ((frame % 10) == 0) {
 
-                printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
+                printf("FPS:%f %d %d %d %d\n", 1.0e6 / (current_time - last_time),frame, 
+                    heap_caps_get_free_size(MALLOC_CAP_DMA),
+                    heap_caps_get_free_size(MALLOC_CAP_32BIT),
+                    heap_caps_get_free_size(MALLOC_CAP_DMA));
+         //       heap_caps_print_heap_info(MALLOC_CAP_32BIT);
                 vTaskDelay(1);
             }
             #ifdef SHOW_PADS
@@ -205,19 +209,19 @@ void app_main() {
     }
 #endif
     // Initialize the effect displayed
-    if (DISPLAY_IMAGE_WAVE) image_wave_init(COPY_IMAGE_TO_RAM);
+    if (DISPLAY_IMAGE_WAVE) image_wave_init();
     int sel=0;
     while(1) {
         sel=demo_menu(sel);
         switch(sel) {
             case 0:
-                life();
+                life_demo();
                 break;
             case 1:
-                display();
+                image_wave_demo();
                 break;
             case 2:
-                graphics_demo();
+                spaceship_demo();
                 break;
             case 3:
                 teapots_demo();

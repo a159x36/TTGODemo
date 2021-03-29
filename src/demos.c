@@ -24,35 +24,51 @@ const char *tag="T Display";
 uint32_t vref;
 time_t time_now;
 struct tm *tm_info;
+
+void showfps() {
+    static uint64_t current_time=0;
+    static uint64_t last_time=0;
+    static int frame=0;
+    current_time = esp_timer_get_time();
+    if ((frame++ % 20) == 1) {
+        printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
+        vTaskDelay(1);
+    }
+    last_time=current_time;
+}
 // Simple game of life demo
-void life() {
-    uint16_t linebuffer[display_width*2];
+void life_demo() {
+    cls(0);
     for(int i=0;i<(display_width*display_height)/2;i++) {
-        int x=rand()%display_width;
-        int y=rand()%display_height;
+        int x=rand()%(display_width);
+        int y=rand()%(display_height-2)+1;
         draw_pixel(x,y,-1);//rand() | 1);
     }
-    int speed=1;
+    flip_frame();
+    int speed=0;
     while (1) {
-        for(int y=0;y<display_height;y++) {
-            uint16_t *pline=frame_buffer+((y+display_height-1)%display_height)*display_width;
-            uint16_t *nline=frame_buffer+((y+display_height+1)%display_height)*display_width;
-            uint16_t *line=frame_buffer+y*display_width;
-            uint16_t *lb=linebuffer+(y%2)*display_width;
+        for(int y=1;y<display_height-1;y++) {
+            uint16_t *pfb=(frame_buffer==fb1)?fb2:fb1;
+            pfb+=y*display_width+1-speed;
+            uint16_t *pl=pfb-display_width;
+            uint16_t *nl=pfb+display_width;
+            uint16_t *cl=frame_buffer+y*display_width+1;
             for(int x=1;x<display_width-1;x++) {
                 int n=0;
-                uint16_t v=line[x];
-                n=(pline[x-1]&1)+(pline[x]&1)+(pline[x+1]&1)+
-                (line[x-1]&1)+(line[x+1]&1)+
-                (nline[x-1]&1)+(nline[x]&1)+(nline[x+1]&1);
+                uint16_t v=(*pfb & 1);
+                n=(pl[-1]&1)+(*pl&1)+(pl[1]&1)+
+                    (pfb[-1]&1)+(pfb[1]&1)+(nl[-1]&1)+(*nl&1)+(nl[1]&1);
                 if(n>3 || n<2) v=0;
                 if(n==3) v=-1;//rand() | 1;
-                *lb++=v;
+                *cl++=v;
+                pl++;
+                pfb++;
+                nl++;
             }
-            lb=linebuffer+((y+1)%2)*display_width;
-            memcpy(pline+speed,lb,display_width*2-speed*2+2);
+        
         }
         flip_frame();
+        showfps();
         int key=get_input();
         if(key==35) speed++;
         if(key==0) return;
@@ -68,7 +84,7 @@ typedef struct pos {
 } pos;
 
 // simple spaceship and starfield demo
-void graphics_demo() {
+void spaceship_demo() {
     int x=(display_width/2)<<8;
     int y=display_height-spaceship_image.height/2;
     int dx=256;
@@ -103,16 +119,15 @@ void graphics_demo() {
             dx+=ddx;
         }
         flip_frame();
+        showfps();
         int key=get_input();
         if(key==0) return;
     }
 }
 // waving image demo showing time
-void display() {
+void image_wave_demo() {
     char buff[128];
     int frame = 0;
-    int64_t current_time;
-    int64_t last_time = esp_timer_get_time();
     if (DISPLAY_VOLTAGE) {
         gpio_set_direction(34, GPIO_MODE_INPUT);
         // Configure ADC
@@ -154,12 +169,7 @@ void display() {
         setFontColour(200, 200, 200);
         print_xy(buff, 10, 100);
         flip_frame();
-        current_time = esp_timer_get_time();
-        if ((frame % 10) == 0) {
-            printf("FPS:%f\n", 1.0e6 / (current_time - last_time));
-            vTaskDelay(1);
-        }
-        last_time = current_time;
+        showfps();
         int key=get_input();
         if(key==0) return;
     }
@@ -170,8 +180,6 @@ void teapots_demo() {
     vec3f rot[nteapots];
     vec2 pos[nteapots];
     int s[nteapots];
-    int64_t current_time=0, last_time=0;
-    int frame=0;
     colourtype col[nteapots];
     for(int i=0;i<nteapots; i++) {
         rot[i]=(vec3f){(rand()%31415)/5000.0,
@@ -198,12 +206,7 @@ void teapots_demo() {
             rot[i]=add3d(rot[i],(vec3f){0.0523,0.0354,0.0714});
         }
         flip_frame();
-        current_time = esp_timer_get_time();
-        if ((frame++ % 10) == 0) {
-            printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
-            vTaskDelay(1);
-        }
-        last_time=current_time;
+        showfps();
         int key=get_input();
         if(key==0) return;
     }
