@@ -27,7 +27,7 @@
 #define PAD_START 3
 #define PAD_END 5
 
-// #define SHOW_PADS
+#define SHOW_PADS
 /*
  This code has been modified from the espressif spi_master demo code
  it displays some demo graphics on the 240x135 LCD on a TTGO T-Display board.
@@ -118,26 +118,33 @@ int demo_menu(int select) {
                 print_xy("Landscape",10,LASTY+18);
             else
                 print_xy("Portrait",10,LASTY+18);
-            wait_frame();
-            send_frame();
-            current_time = esp_timer_get_time();
-            if ((frame % 10) == 0) {
-
-                printf("FPS:%f %d %d %d %d\n", 1.0e6 / (current_time - last_time),frame, 
-                    heap_caps_get_free_size(MALLOC_CAP_DMA),
-                    heap_caps_get_free_size(MALLOC_CAP_32BIT),
-                    heap_caps_get_free_size(MALLOC_CAP_DMA));
-         //       heap_caps_print_heap_info(MALLOC_CAP_32BIT);
-                vTaskDelay(1);
-            }
             #ifdef SHOW_PADS
                for (int i = 0; i <4; i++) {
                     uint16_t touch_value;
                     touch_pad_read(TOUCH_PADS[i], &touch_value);
-                    printf("T%d:[%4d] ", i, touch_value);
+                    
+                    if(touch_value<1000) {
+                        int x=(i%2*120);
+                        int y=i>1?0:130;
+                        if(get_orientation())  
+                            draw_rectangle(130-y,x,5,120,rgbToColour(200,200,255));
+                        else 
+                            draw_rectangle(x,y,120,5,rgbToColour(200,200,255)); 
+                    }
+                    //printf("T%d:[%4d] ", i, touch_value);
                 }
-                printf("\n");
+                //printf("\n");
+                //touch_pad_sw_start();
             #endif
+            wait_frame();
+            send_frame();
+            current_time = esp_timer_get_time();
+            if ((frame % 10) == 0) {
+                printf("FPS:%f %d %d\n", 1.0e6 / (current_time - last_time),
+                    heap_caps_get_free_size(MALLOC_CAP_DMA),
+                    heap_caps_get_free_size(MALLOC_CAP_32BIT));
+                vTaskDelay(1);
+            }
             last_time = current_time;
             int key=get_input();
             if(key==0) select=(select+1)%5;
@@ -168,6 +175,7 @@ void app_main() {
 
 #ifdef SHOW_PADS
     touch_pad_init();
+    touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
     touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_1V);
     for (int i = 0;i< 4;i++) {
         touch_pad_config(TOUCH_PADS[i], 0);
