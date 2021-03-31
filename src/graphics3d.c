@@ -234,8 +234,12 @@ void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col) {
     teapot_size=size;
     maketrotationmatrix();
     // 28-32=base
-    // 20-28=lid
-    // 16-20=spout 16=r, 17=l
+    // 20-27=lid
+    // 16-19=spout
+    // 12-15=handle
+    // 8-11=bottom body
+    // 0-7=top body
+
     nquads=0;
     for(int ii=0;ii<32;ii++) {
         for(int j=0;j<4;j++) {
