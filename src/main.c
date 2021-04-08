@@ -40,6 +40,8 @@ const int TOUCH_PADS[4]={2,3,8,9};
 QueueHandle_t inputQueue;
 uint64_t lastkeytime=0;
 
+extern image_header  bubble;
+
 // interrupt handler for button presses on GPIO0 and GPIO35
 static void IRAM_ATTR gpio_isr_handler(void* arg)
 {
@@ -85,71 +87,65 @@ int demo_menu(int select) {
     float teapot_size=20;
     colourtype diffuse={20,220,40};
     vec2 pos;
+    int frame=0;
     while(1) {
-        for(int frame=0;frame < 4000; frame++) {
-            cls(rgbToColour(100,20,20));
-            setFont(FONT_DEJAVU18);
-            setFontColour(255, 255, 255);
-            draw_rectangle(0,5,display_width,24,rgbToColour(220,220,0));
-            draw_rectangle(0,select*18+24+5,display_width,18,rgbToColour(0,180,180));
-            pos=(vec2){display_width/2,display_height/2};
-            if(get_orientation()) pos.y+=display_height/4;
-            else pos.x+=display_width/4;
+        cls(rgbToColour(100,20,20));
+        setFont(FONT_DEJAVU18);
+        setFontColour(255, 255, 255);
+        draw_rectangle(0,5,display_width,24,rgbToColour(220,220,0));
+        draw_rectangle(0,select*18+24+5,display_width,18,rgbToColour(0,180,180));
+        pos=(vec2){display_width/2,display_height/2};
+        if(get_orientation()) pos.y+=display_height/4;
+        else pos.x+=display_width/4;
+        draw_image(&bubble,bx,by);
+        bx+=vbx;
+        by+=vby;
+        if(bx<bubble.width/2 || bx+bubble.width/2>display_width) {vbx=-vbx;bx+=vbx;}
+        if(by<bubble.height/2 || by+bubble.height/2>display_height) {vby=-vby;by+=vby;}
+        draw_teapot(pos,teapot_size,rotation,diffuse);
+        rotation=add3d(rotation,(vec3f){0.011,0.019,0.017});
+        if(rotation.x>2*PI) rotation.x-=2*PI;
+        if(rotation.y>2*PI) rotation.y-=2*PI;
+        if(rotation.z>2*PI) rotation.z-=2*PI;
+        setFontColour(0, 0, 0);
+        print_xy("Demo Menu", 10, 10);
+        setFontColour(255, 255, 255);
+        setFont(FONT_UBUNTU16);
+        print_xy("Life",10,LASTY+21);
+        print_xy("Image Wave",10,LASTY+18);
+        print_xy("Spaceship",10,LASTY+18);
+        print_xy("Teapots",10,LASTY+18);
+        if(get_orientation())
+            print_xy("Landscape",10,LASTY+18);
+        else
+            print_xy("Portrait",10,LASTY+18);
+        #ifdef SHOW_PADS
+        for (int i = 0; i <4; i++) {
+            uint16_t touch_value;
+            touch_pad_read(TOUCH_PADS[i], &touch_value);
             
-            extern image_header  bubble;
-            draw_image(&bubble,bx,by);
-            bx+=vbx;
-            by+=vby;
-            if(bx<bubble.width/2 || bx+bubble.width/2>display_width) {vbx=-vbx;bx+=vbx;}
-            if(by<bubble.height/2 || by+bubble.height/2>display_height) {vby=-vby;by+=vby;}
-
-            draw_teapot(pos,teapot_size,rotation,diffuse);
-            rotation=add3d(rotation,(vec3f){0.011,0.019,0.017});
-
-            setFontColour(0, 0, 0);
-            print_xy("Demo Menu", 10, 10);
-            setFontColour(255, 255, 255);
-            setFont(FONT_UBUNTU16);
-            print_xy("Life",10,LASTY+21);
-            print_xy("Image Wave",10,LASTY+18);
-            print_xy("Spaceship",10,LASTY+18);
-            print_xy("Teapots",10,LASTY+18);
-            if(get_orientation())
-                print_xy("Landscape",10,LASTY+18);
-            else
-                print_xy("Portrait",10,LASTY+18);
-            #ifdef SHOW_PADS
-               for (int i = 0; i <4; i++) {
-                    uint16_t touch_value;
-                    touch_pad_read(TOUCH_PADS[i], &touch_value);
-                    
-                    if(touch_value<1000) {
-                        int x=(i%2*120);
-                        int y=i>1?0:130;
-                        if(get_orientation())  
-                            draw_rectangle(130-y,x,5,120,rgbToColour(200,200,255));
-                        else 
-                            draw_rectangle(x,y,120,5,rgbToColour(200,200,255)); 
-                    }
-                    //printf("T%d:[%4d] ", i, touch_value);
-                }
-                //printf("\n");
-                //touch_pad_sw_start();
-            #endif
-            wait_frame();
-            send_frame();
-            current_time = esp_timer_get_time();
-            if ((frame % 10) == 0) {
-                printf("FPS:%f %d %d\n", 1.0e6 / (current_time - last_time),
-                    heap_caps_get_free_size(MALLOC_CAP_DMA),
-                    heap_caps_get_free_size(MALLOC_CAP_32BIT));
-                vTaskDelay(1);
+            if(touch_value<1000) {
+                int x=(i%2*120);
+                int y=i>1?0:130;
+                if(get_orientation())  
+                    draw_rectangle(130-y,x,5,120,rgbToColour(200,200,255));
+                else 
+                    draw_rectangle(x,y,120,5,rgbToColour(200,200,255)); 
             }
-            last_time = current_time;
-            int key=get_input();
-            if(key==0) select=(select+1)%5;
-            if(key==35) return select;
         }
+        #endif
+        flip_frame();
+        current_time = esp_timer_get_time();
+        if ((frame++ % 10) == 0) {
+            printf("FPS:%f %d %d\n", 1.0e6 / (current_time - last_time),
+                heap_caps_get_free_size(MALLOC_CAP_DMA),
+                heap_caps_get_free_size(MALLOC_CAP_32BIT));
+            vTaskDelay(1);
+        }
+        last_time = current_time;
+        int key=get_input();
+        if(key==0) select=(select+1)%5;
+        if(key==35) return select;
     }
 }
 
