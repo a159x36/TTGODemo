@@ -33,7 +33,6 @@
  it displays some demo graphics on the 240x135 LCD on a TTGO T-Display board.
 */
 
-
 const int TOUCH_PADS[4]={2,3,8,9};
 
 // for button inputs
@@ -55,23 +54,30 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
     // ets_printf("gpio_isr_handler %d %d %lld\n",gpio_num,val, timesince);
     // the buttons can be very bouncy so debounce by checking that it's been .5ms since the last
     // change and that it's pressed down
-    if(timesince>500 && val==0) {
-        xQueueSendFromISR(inputQueue,&gpio_num,0);
-
+    if(timesince>500) {
+        int v=gpio_num+val*100;
+        xQueueSendFromISR(inputQueue,&v,0);
+        lastkeytime=time;
     }
     pval[gpio_index]=val;
-    lastkeytime=time;
+    
     gpio_set_intr_type(gpio_num,val==0?GPIO_INTR_HIGH_LEVEL:GPIO_INTR_LOW_LEVEL);
 
 }
 
 // get a button press, returns -1 if no button has been pressed
 // otherwise the gpio of the button.
-int get_input() {
+key_type get_input() {
     int key;
     if(xQueueReceive(inputQueue,&key,0)==pdFALSE)
-        return -1;
-    return key;
+        return NO_KEY;
+    switch(key) {
+        case 0: return LEFT_DOWN;
+        case 35: return RIGHT_DOWN;
+        case 100: return LEFT_UP;
+        case 135: return RIGHT_UP;
+    }
+    return NO_KEY;
 }
 
 
@@ -92,8 +98,8 @@ int demo_menu(int select) {
         cls(rgbToColour(100,20,20));
         setFont(FONT_DEJAVU18);
         setFontColour(255, 255, 255);
-        draw_rectangle(0,5,display_width,24,rgbToColour(220,220,0));
-        draw_rectangle(0,select*18+24+5,display_width,18,rgbToColour(0,180,180));
+        draw_rectangle(0,3,display_width,24,rgbToColour(220,220,0));
+        draw_rectangle(0,select*18+24+3,display_width,18,rgbToColour(0,180,180));
         pos=(vec2){display_width/2,display_height/2};
         if(get_orientation()) pos.y+=display_height/4;
         else pos.x+=display_width/4;
@@ -108,13 +114,14 @@ int demo_menu(int select) {
         if(rotation.y>2*PI) rotation.y-=2*PI;
         if(rotation.z>2*PI) rotation.z-=2*PI;
         setFontColour(0, 0, 0);
-        print_xy("Demo Menu", 10, 10);
+        print_xy("Demo Menu", 10, 8);
         setFontColour(255, 255, 255);
         setFont(FONT_UBUNTU16);
         print_xy("Life",10,LASTY+21);
         print_xy("Image Wave",10,LASTY+18);
         print_xy("Spaceship",10,LASTY+18);
         print_xy("Teapots",10,LASTY+18);
+        print_xy("Bubble Game",10,LASTY+18);
         if(get_orientation())
             print_xy("Landscape",10,LASTY+18);
         else
@@ -143,9 +150,9 @@ int demo_menu(int select) {
             vTaskDelay(1);
         }
         last_time = current_time;
-        int key=get_input();
-        if(key==0) select=(select+1)%5;
-        if(key==35) return select;
+        key_type key=get_input();
+        if(key==LEFT_DOWN) select=(select+1)%6;
+        if(key==RIGHT_DOWN) return select;
     }
 }
 
@@ -231,6 +238,9 @@ void app_main() {
                 teapots_demo();
                 break;
             case 4:
+                bubble_demo();
+                break;
+            case 5:
                 set_orientation(1-get_orientation());
                 break;
         }
