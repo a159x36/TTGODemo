@@ -38,6 +38,7 @@ const int TOUCH_PADS[4]={2,3,8,9};
 // for button inputs
 QueueHandle_t inputQueue;
 uint64_t lastkeytime=0;
+int emulator=0;
 
 extern image_header  bubble;
 
@@ -164,6 +165,9 @@ void app_main() {
     // ===== Set time zone ======
     setenv("TZ", "	NZST-12", 0);
     tzset();
+    uint32_t user2=*((uint32_t *)0x3FF64024);
+    printf("user2=%x\n",user2);
+    if(user2!=0x70000000) emulator=1; 
     // ==========================
     time(&time_now);
     tm_info = localtime(&time_now);
@@ -190,7 +194,7 @@ void app_main() {
 #if USE_WIFI
 
     // Is time set? If not, tm_year will be (1970 - 1900).
-    if (tm_info->tm_year < (2016 - 1900)) {
+    if (tm_info->tm_year < (2016 - 1900) && !emulator) {
         ESP_LOGI(tag,
                  "Time is not set yet. Connecting to WiFi and getting time "
                  "over NTP.");

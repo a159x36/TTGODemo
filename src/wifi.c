@@ -21,7 +21,8 @@
 
 #if USE_WIFI
 static EventGroupHandle_t wifi_event_group;
-#define DEFAULT_SCAN_LIST_SIZE 16
+//#define DEFAULT_SCAN_LIST_SIZE 16
+#define TAG "Wifi"
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
    to the AP with an IP? */
@@ -41,7 +42,12 @@ static void event_handler(void *arg, esp_event_base_t event_base,
  
 //-------------------------------
 static esp_netif_t *sta_netif = NULL;
+#define DEFAULT_SCAN_LIST_SIZE 24
 void initialise_wifi(void) {
+    uint16_t number = DEFAULT_SCAN_LIST_SIZE;
+    static wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
+    uint16_t ap_count = 0;
+    memset(ap_info, 0, sizeof(ap_info));
     esp_netif_init();
     wifi_event_group = xEventGroupCreate();
     //ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
@@ -62,9 +68,19 @@ void initialise_wifi(void) {
     ESP_LOGI(tag, "Setting WiFi configuration SSID %s...",
              wifi_config.sta.ssid);
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+ //   ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
 
     ESP_ERROR_CHECK(esp_wifi_start());
+    esp_wifi_scan_start(NULL, true);
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&number, ap_info));
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_count));
+    ESP_LOGI(TAG, "Total APs scanned = %u", ap_count);
+    for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_count); i++) {
+        ESP_LOGI(TAG, "SSID \t\t%s", ap_info[i].ssid);
+        ESP_LOGI(TAG, "RSSI \t\t%d", ap_info[i].rssi);
+        ESP_LOGI(TAG, "AUTH \t\t%d %d %d",ap_info[i].authmode,ap_info[i].pairwise_cipher, ap_info[i].group_cipher);
+        ESP_LOGI(TAG, "Channel \t\t%d\n", ap_info[i].primary);
+    }
     /*
     esp_wifi_scan_start(NULL,true);
     #define DEFAULT_SCAN_LIST_SIZE 16

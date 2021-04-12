@@ -21,7 +21,7 @@ void bubble_demo();
 #define WIFI_SSID "MUGuests"
 #define WIFI_PASSWORD ""
 
-#define USE_WIFI 0
+#define USE_WIFI 1
 #define DISPLAY_VOLTAGE 1
 #define DISPLAY_IMAGE_WAVE 1
 
