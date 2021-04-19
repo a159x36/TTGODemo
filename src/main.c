@@ -82,9 +82,8 @@ key_type get_input() {
 }
 
 
-
 // menu with a rotating teapot, because... why not.
-int demo_menu(int select) {
+int demo_menu(char * title, int nentries, char *entries[], int select) {
     // for fps calculation
     int64_t current_time;
     int64_t last_time = esp_timer_get_time();
@@ -115,23 +114,16 @@ int demo_menu(int select) {
         if(rotation.y>2*PI) rotation.y-=2*PI;
         if(rotation.z>2*PI) rotation.z-=2*PI;
         setFontColour(0, 0, 0);
-        print_xy("Demo Menu", 10, 8);
+        print_xy(title, 10, 8);
         setFontColour(255, 255, 255);
         setFont(FONT_UBUNTU16);
-        print_xy("Life",10,LASTY+21);
-        print_xy("Image Wave",10,LASTY+18);
-        print_xy("Spaceship",10,LASTY+18);
-        print_xy("Teapots",10,LASTY+18);
-        print_xy("Bubble Game",10,LASTY+18);
-        if(get_orientation())
-            print_xy("Landscape",10,LASTY+18);
-        else
-            print_xy("Portrait",10,LASTY+18);
+        for(int i=0;i<nentries;i++) {
+            print_xy(entries[i],10,LASTY+((i==0)?21:18));
+        }
         #ifdef SHOW_PADS
         for (int i = 0; i <4; i++) {
             uint16_t touch_value;
             touch_pad_read(TOUCH_PADS[i], &touch_value);
-            
             if(touch_value<1000) {
                 int x=(i%2*120);
                 int y=i>1?0:130;
@@ -152,7 +144,7 @@ int demo_menu(int select) {
         }
         last_time = current_time;
         key_type key=get_input();
-        if(key==LEFT_DOWN) select=(select+1)%6;
+        if(key==LEFT_DOWN) select=(select+1)%nentries;
         if(key==RIGHT_DOWN) return select;
     }
 }
@@ -190,7 +182,7 @@ void app_main() {
 #endif
     graphics_init();
     cls(0);
-
+/*
 #if USE_WIFI
 
     // Is time set? If not, tm_year will be (1970 - 1900).
@@ -223,11 +215,15 @@ void app_main() {
         //	Wait(-2000);
     }
 #endif
+*/
     // Initialize the effect displayed
     if (DISPLAY_IMAGE_WAVE) image_wave_init();
     int sel=0;
     while(1) {
-        sel=demo_menu(sel);
+        char *entries[]={"Life","Image Wave",emulator?"Spaceship":"Wifi Scan",
+                        "Teapots","Bubble Game",
+                        get_orientation()?"Landscape":"Portrait"};
+        sel=demo_menu("Demo",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
                 life_demo();
@@ -236,7 +232,8 @@ void app_main() {
                 image_wave_demo();
                 break;
             case 2:
-                spaceship_demo();
+                if(emulator) spaceship_demo();
+                else wifi_scan();
                 break;
             case 3:
                 teapots_demo();
