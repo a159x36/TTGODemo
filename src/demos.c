@@ -177,7 +177,7 @@ void image_wave_demo() {
 }
 
 void teapots_demo() {
-    int nteapots=10;
+    int nteapots=5;
     vec3f rot[nteapots];
     vec2 pos[nteapots];
     int s[nteapots];
@@ -197,7 +197,7 @@ void teapots_demo() {
         if(m&2) col[i].g/=8;
         if(m&4) col[i].b/=8;
         
-        s[i]=rand()%20+10;
+        s[i]=rand()%20+20;
         //if((i&7)==0) col[i].g=100;
     }
     while(1) {
