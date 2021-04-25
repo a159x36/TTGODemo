@@ -77,9 +77,10 @@ void init_wifi() {
 int ap_cmp(const void *ap1, const void *ap2) {
     wifi_ap_record_t *a1=(wifi_ap_record_t *)ap1;
     wifi_ap_record_t *a2=(wifi_ap_record_t *)ap2;
-    if(a1->rssi!=a2->rssi)
-        return a2->rssi - a1->rssi;
-    return strcmp((char *)a2->ssid, (char *)a1->ssid);
+    int n=strcmp((char *)a1->ssid, (char *)a2->ssid);
+    if(n==0) n= a1->primary - a2->primary;
+    if(n==0) n= a2->rssi - a1->rssi;
+    return n;
 }
 
 void wifi_scan(void) {
