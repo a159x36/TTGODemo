@@ -106,13 +106,9 @@ void wifi_scan(void) {
         for(int i=0;i<number;i++) {
             uint8_t *ssid=ap_info[i].ssid;
             uint8_t ch=ap_info[i].primary;
-            //uint8_t *mac=ap_info[i].bssid;
             for(j=0;j<ap_number;j++) {
-                if(!strcmp((char *)ssid,(char *)ap_list[j].ssid) && ap_list[j].primary==ch) {//!memcmp(mac,ap_list[j].bssid,6)) {//!strcmp((char *)ssid,(char *)ap_list[j].ssid)) {//memcmp(mac,ap_info[j].bssid,6)==0) {
-  //                   printf("dup %x:%x:%x:%x:%x:%x\n",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
-               //     if(ap_info[i].rssi>ap_list[j].rssi) {
-                        ap_list[j]=ap_info[i];
-               //     }
+                if(!strcmp((char *)ssid,(char *)ap_list[j].ssid) && ap_list[j].primary==ch) {
+                    ap_list[j]=ap_info[i];
                     break;
                 }
             }

@@ -99,7 +99,6 @@ inline void maketrotationmatrix() {
     rmx[2][2]=cb*ca;
 }
 
-portMUX_TYPE mutex = portMUX_INITIALIZER_UNLOCKED;
 void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     
     vec3f normal=normalise(cross3d(sub3d(p2,p0),sub3d(p3,p0)));
@@ -115,10 +114,8 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     b=point3d_to_xy(p1);
     c=point3d_to_xy(p2);
     d=point3d_to_xy(p3);
-//    portENTER_CRITICAL(&mutex);
     quads[nquads++]=(quadtype){{a.x,a.y,b.x,b.y,c.x,c.y,d.x,d.y},
                         colour,(int16_t)((p0.z+p1.z+p2.z+p3.z)*64)};
-//    portEXIT_CRITICAL(&mutex);
 }
 
 int cmpquad(const void * a, const void * b) {
@@ -137,26 +134,7 @@ void draw_all_quads() {
         draw_triangle(q.p[4],q.p[5],q.p[6],q.p[7],q.p[0],q.p[1],q.col);
     }
 }
-/*
-void draw_quad_3d(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
 
-    vec3f normal=normalise(cross3d(sub3d(p2,p0),sub3d(p3,p0)));
-    if(normal.z<=0) return;
-
-    float light=clampf(dot(normal,lightpos),0,1.0);
-
-    uint16_t colour=rgbToColour(clamp(((int)(diffuse.r*light))+ambiant.r,0,255),
-    clamp((int)(diffuse.g*light)+ambiant.g,0,255),
-    clamp((int)(diffuse.b*light)+ambiant.b,0,255));
-    vec2 a,b,c,d;
-    a=point3d_to_xy(p0);
-    b=point3d_to_xy(p1);
-    c=point3d_to_xy(p2);
-    d=point3d_to_xy(p3);
-    draw_triangle(a.x,a.y,b.x,b.y,c.x,c.y, colour);
-    draw_triangle(c.x,c.y,d.x,d.y,a.x,a.y, colour);
-}
-*/
 inline vec3f vrotate(vec3f v, float f0, float f1, float f2) {
     v.x=v.x*f0;
     v.y=v.y*f1;
@@ -189,42 +167,10 @@ void bezier(vec3f const p[4][4], vec3f np[7][7]) {
         np[3][i]=mid3d(np[2][i],np[4][i]);
     }
 }
-//TaskHandle_t th;
-//static EventGroupHandle_t draw_event_group=NULL;
-/*
-void teapottask(void *pvParameters ) {
-    static vec3f np[7][7];
-    static vec3f p[4][4];
-    while(1) {
-    xEventGroupWaitBits(draw_event_group,2,pdTRUE,pdFALSE,100);
-    for(int ii=16;ii<32;ii++) {
-        for(int j=0;j<4;j++) {
-            for(int k=0;k<4; k++) {
-                p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1],teapot_size,teapot_size,teapot_size);
-            }
-        }
-        bezier(p,np);
-        for(int j=1;j<7;j++) {
-            for(int k=1;k<7;k++) {
-                add_quad(np[j-1][k-1],np[j-1][k],np[j][k],np[j][k-1]);
-            }
-        }
-    }
-//    xTaskNotify(th,0,eNoAction);
-    xEventGroupSetBits(draw_event_group,1);
-    }
-    vTaskDelete(NULL);
-}
-*/
+
 
 void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col) {
-/*
-    if(draw_event_group==NULL) {
-        draw_event_group=xEventGroupCreate();
-        xTaskCreate( &teapottask, "tptask", 2048, NULL, 5, NULL );
-    }
-    xEventGroupSetBits(draw_event_group,2);
-    */
+
     static vec3f np[7][7];
     static vec3f p[4][4];
     diffuse=col;
@@ -254,10 +200,5 @@ void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col) {
             }
         }
     }
-    //xTaskNotifyStateClear( NULL );
- //   xEventGroupWaitBits(draw_event_group,1,pdTRUE,pdFALSE,100);
-    
-
-    //xTaskNotifyWait(0,0,NULL,portMAX_DELAY);
     draw_all_quads();
 }

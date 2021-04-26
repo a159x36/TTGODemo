@@ -17,6 +17,7 @@
 #include "demos.h"
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
+#include <nvs_flash.h>
 #include <time.h>
 
 const char *tag="T Display";
@@ -229,7 +230,19 @@ int overlap(obj *r1, obj *r2) {
     return 0;
 }
 extern image_header  bubble;
+
 void bubble_demo() {
+    esp_err_t err;
+    nvs_handle_t my_handle;
+    static int high_score=0;
+    err = nvs_open("storage", NVS_READWRITE, &my_handle);
+    if(err!=0) {
+        nvs_flash_init();
+        err = nvs_open("storage", NVS_READWRITE, &my_handle);
+        printf("err1: %d\n",err);
+    }
+    err = nvs_get_i32(my_handle, "highscore", &high_score);
+    printf("err: %d\n",err);
     static char score_str[256];
     static pos stars[NSTARS];
     set_orientation(PORTRAIT);
@@ -252,7 +265,7 @@ void bubble_demo() {
     bat.w=20;
     bat.h=5;
     int score=0;
-    setFont(FONT_SMALL);
+    setFont(FONT_UBUNTU16);
     setFontColour(255, 255, 255);
     int keys[2]={1,1};
     uint64_t last_time=esp_timer_get_time();
@@ -263,8 +276,12 @@ void bubble_demo() {
         }
         draw_rectangle(bat.x,bat.y,bat.w,bat.h,-1);
         draw_image(&bubble,ball.x,ball.y);
+        setFontColour(0, 255, 0);
         snprintf(score_str,64,"Score: %d",score);
-        print_xy(score_str, 10, 10);
+        print_xy(score_str, 0, 1);
+        setFontColour(100, 100, 155);
+        snprintf(score_str,64,"HiScore: %d",high_score);
+        print_xy(score_str, 0, LASTY+16);
         float dt;
         uint64_t time=esp_timer_get_time();
         dt=(time-last_time)/10000.0; // hundredths of secs since boot;
@@ -346,8 +363,17 @@ void bubble_demo() {
     setFontColour(255, 0, 0);
     print_xy("Game Over", CENTER, CENTER);
     setFontColour(0, 255, 0);
+    snprintf(score_str,64,"Score: %d",score);
     print_xy(score_str,CENTER, LASTY+18);
     flip_frame();
+    if(score>high_score) {
+        high_score=score;
+        err=nvs_set_i32(my_handle, "highscore", score);
+        printf("err: %d\n",err);
+        err=nvs_commit(my_handle);
+        printf("err: %d\n",err);
+    }
+    nvs_close(my_handle);
     vTaskDelay(500/portTICK_PERIOD_MS);
     while(get_input());
     while(get_input()!=RIGHT_DOWN)
