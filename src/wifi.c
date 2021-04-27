@@ -46,7 +46,8 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         esp_wifi_connect();
         xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+    } else if (event_base == IP_EVENT && ((event_id == IP_EVENT_STA_GOT_IP) || 
+    (event_id == IP_EVENT_AP_STAIPASSIGNED))) {
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
         esp_wifi_scan_start(NULL,false);
@@ -60,11 +61,9 @@ static esp_netif_t *sta_netif = NULL;
 void init_wifi(wifi_mode_type mode) {
     wifi_mode=mode;
     if(sta_netif!=NULL) {
-//        return;
         esp_event_loop_delete_default();
         esp_wifi_clear_default_wifi_driver_and_handlers(sta_netif);
         esp_netif_destroy(sta_netif);
-//        esp_wifi_deinit();
     } else
         esp_netif_init();
     wifi_event_group = xEventGroupCreate();
@@ -76,14 +75,18 @@ void init_wifi(wifi_mode_type mode) {
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL) );
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL) );
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL) );
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
 
-    if(mode==ACCESS_POINT)
+    uint8_t protocol=WIFI_PROTOCOL_LR;//(WIFI_PROTOCOL_11B|WIFI_PROTOCOL_11G|WIFI_PROTOCOL_11N|WIFI_PROTOCOL_LR);
+    if(mode==ACCESS_POINT) {
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-    else
+        esp_wifi_set_protocol(ESP_IF_WIFI_AP,protocol);
+    }
+    else {
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    
+        esp_wifi_set_protocol(ESP_IF_WIFI_STA,protocol);
+    }
 }
 
 int ap_cmp(const void *ap1, const void *ap2) {
