@@ -96,8 +96,6 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
     int frame=0;
     while(1) {
         cls(rgbToColour(100,20,20));
-        setFont(FONT_DEJAVU18);
-        setFontColour(255, 255, 255);
         draw_rectangle(0,3,display_width,24,rgbToColour(220,220,0));
         draw_rectangle(0,select*18+24+3,display_width,18,rgbToColour(0,180,180));
         pos=(vec2){display_width/2,display_height/2};
@@ -113,6 +111,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
         if(rotation.x>2*PI) rotation.x-=2*PI;
         if(rotation.y>2*PI) rotation.y-=2*PI;
         if(rotation.z>2*PI) rotation.z-=2*PI;
+        setFont(FONT_DEJAVU18);
         setFontColour(0, 0, 0);
         print_xy(title, 10, 8);
         setFontColour(255, 255, 255);
@@ -149,28 +148,47 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
     }
 }
 
+void wifi_menu() {
+        int sel=0;
+    while(1) {
+        char *entries[]={"Scan","Connect","Access Point",
+                        get_orientation()?"Landscape":"Portrait", "Back"};
+        sel=demo_menu("Wifi Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        switch(sel) {
+            case 0:
+                wifi_scan();
+                break;
+            case 1:
+                wifi_connect();
+                break;
+            case 2:
+                wifi_ap();
+                break;
+            case 3:
+                set_orientation(1-get_orientation());
+                break;
+            case 4:
+                return;
+        }
+    }
+}
 
 void app_main() {
     // queue for button presses
     inputQueue = xQueueCreate(4,4);
     // Initialize NVS
-    /*
     esp_err_t err = nvs_flash_init();
-    printf("nvs_flash_init:%d\n",err);
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         // NVS partition was truncated and needs to be erased
         // Retry nvs_flash_init
         ESP_ERROR_CHECK(nvs_flash_erase());
         err = nvs_flash_init();
     }
-    
     ESP_ERROR_CHECK( err );
-    */
-    // ===== Set time zone ======
+    // ===== Set time zone to NZST======
     setenv("TZ", "	NZST-12", 0);
     tzset();
     uint32_t user2=*((uint32_t *)0x3FF64024);
-    printf("user2=%x\n",user2);
     if(user2!=0x70000000) emulator=1; 
     // ==========================
     time(&time_now);
@@ -232,7 +250,7 @@ void app_main() {
     if (DISPLAY_IMAGE_WAVE) image_wave_init();
     int sel=0;
     while(1) {
-        char *entries[]={"Life","Image Wave",emulator?"Spaceship":"Wifi Scan",
+        char *entries[]={"Life","Image Wave",emulator?"Spaceship":"Wifi Menu",
                         "Teapots","Bubble Game",
                         get_orientation()?"Landscape":"Portrait"};
         sel=demo_menu("Demo",sizeof(entries)/sizeof(char *),entries,sel);
@@ -245,7 +263,7 @@ void app_main() {
                 break;
             case 2:
                 if(emulator) spaceship_demo();
-                else wifi_scan();
+                else wifi_menu();
                 break;
             case 3:
                 teapots_demo();
