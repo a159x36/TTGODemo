@@ -5,6 +5,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
+#include <driver/gpio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,6 +19,7 @@
 #include <time.h>
 #include "esp_smartconfig.h"
 #include "demos.h"
+#include "lwip/sockets.h"
 
 #if USE_WIFI
 static EventGroupHandle_t wifi_event_group;
@@ -36,6 +38,8 @@ wifi_mode_type wifi_mode=0;
    to the AP with an IP? */
 const int CONNECTED_BIT = 0x00000001;
 char wifi_event[64];
+void client_task(void *pvParameters);
+TaskHandle_t ctask=NULL;
 static void event_handler(void *arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data) {
     ESP_LOGI(tag, "WiFi event %s %d\n",event_base,event_id);
@@ -49,6 +53,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     } else if (event_base == IP_EVENT && ((event_id == IP_EVENT_STA_GOT_IP) || 
     (event_id == IP_EVENT_AP_STAIPASSIGNED))) {
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
+        if(wifi_mode==STATION) xTaskCreate(client_task,"ct",2048,NULL,1,&ctask);
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
         esp_wifi_scan_start(NULL,false);
     }
@@ -57,6 +62,67 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 //-------------------------------
 static esp_netif_t *sta_netif = NULL;
 #define DEFAULT_SCAN_LIST_SIZE 24
+
+int received=1;
+int communicating=0;
+
+void send_receive(int sock) {
+    int err=fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
+    printf("Send_rec %d\n",err);
+    int gpio=1;
+    communicating=1;
+    while (communicating) {
+        char rx;
+        int len = recv(sock, &rx, 1, 0);
+        if(len!=-1)
+            printf("Received %d %d\n",len,rx);
+        if(len==-1 && errno!=EWOULDBLOCK) {
+            printf("Error: %d\n",errno);
+            break;
+        }
+        if(gpio_get_level(0)!=gpio) {
+            gpio=gpio_get_level(0);
+            len=send(sock,&gpio,1,0);
+            printf("Sent %d\n",gpio);
+        }
+        received=rx;
+        vTaskDelay(1);
+    }
+    communicating=0;
+    printf("End Send Receive\n");
+}
+
+void server_task(void *pvParameters) {
+    struct sockaddr_in dest_addr_ip4;
+    dest_addr_ip4.sin_addr.s_addr = htonl(INADDR_ANY);
+    dest_addr_ip4.sin_family = AF_INET;
+    dest_addr_ip4.sin_port = htons(80);
+    int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    int opt = 1;
+    setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    bind(listen_sock, (struct sockaddr *)&dest_addr_ip4, sizeof(dest_addr_ip4));
+    listen(listen_sock, 1);
+    struct sockaddr_storage source_addr;
+    socklen_t addr_len = sizeof(source_addr);
+    int sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
+    send_receive(sock);
+    close(sock);
+    close(listen_sock);
+    vTaskDelete(NULL);
+}
+
+void client_task(void *pvParameters) {
+    struct sockaddr_in dest_addr_ip4;
+    dest_addr_ip4.sin_addr.s_addr = inet_addr("192.168.4.1");
+    dest_addr_ip4.sin_family = AF_INET;
+    dest_addr_ip4.sin_port = htons(80);
+    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    connect(sock, (struct sockaddr *)&dest_addr_ip4, sizeof(dest_addr_ip4));
+    send_receive(sock);
+    close(sock);
+    vTaskDelete(NULL);
+    ctask=NULL;
+}
 
 void init_wifi(wifi_mode_type mode) {
     wifi_mode=mode;
@@ -147,8 +213,13 @@ void wifi_ap(void) {
     };
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
+    TaskHandle_t stask;
+    xTaskCreate(server_task,"st",2048,NULL,1,&stask);
     do {
-        cls(0);
+        if(received==1) 
+            cls(rgbToColour(128,0,0));
+        else
+            cls(0);
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
         draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
@@ -157,8 +228,10 @@ void wifi_ap(void) {
         setFontColour(255,255,255);
         print_xy("Last Wifi Event:",5,LASTY+16);
         print_xy(wifi_event,5,LASTY+16);
-        setFont(FONT_SMALL);
         setFontColour(0,255,0);
+        if(communicating)
+            print_xy("Communicating",5,LASTY+16);
+        setFont(FONT_SMALL);
         esp_wifi_ap_get_sta_list(&wifi_stations);
         for(int i=0;i<wifi_stations.num;i++) {
             uint8_t *mac=wifi_stations.sta[i].mac;
@@ -167,24 +240,22 @@ void wifi_ap(void) {
         }
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
+    communicating=0;
     esp_wifi_stop();
 }
 
 void wifi_connect(void) {
     cls(0);
     init_wifi(STATION);
-    wifi_config_t wifi_config = {
-        .sta =
-            {
-                .ssid = EXAMPLE_ESP_WIFI_SSID,
-                .password = WIFI_PASSWORD,
-            },
-    }; 
+    wifi_config_t wifi_config = { .sta ={.ssid = EXAMPLE_ESP_WIFI_SSID,.password = WIFI_PASSWORD}}; 
     wifi_event[0]=0;
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
     do {
-        cls(0);
+        if(received==1) 
+            cls(rgbToColour(128,0,0));
+        else
+            cls(0);
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
         draw_rectangle(3,0,display_width,18,rgbToColour(255,200,0));
@@ -194,6 +265,8 @@ void wifi_connect(void) {
         print_xy("Last Wifi Event:",5,LASTY+16);
         print_xy(wifi_event,5,LASTY+16);
         setFontColour(0,255,0);
+        if(communicating)
+            print_xy("Communicating",5,LASTY+16);
         if(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT) {
             wifi_ap_record_t ap;
             print_xy("Connected",5,LASTY+16);
@@ -203,7 +276,9 @@ void wifi_connect(void) {
         }
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
+    communicating=0;
     esp_wifi_stop();
+    
 }
 
 void wifi_scan(void) {

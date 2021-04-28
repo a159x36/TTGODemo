@@ -54,7 +54,7 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
     uint64_t timesince=time-lastkeytime;
     // ets_printf("gpio_isr_handler %d %d %lld\n",gpio_num,val, timesince);
     // the buttons can be very bouncy so debounce by checking that it's been .5ms since the last
-    // change and that it's pressed down
+    // change
     if(timesince>500) {
         int v=gpio_num+val*100;
         xQueueSendFromISR(inputQueue,&v,0);
@@ -66,8 +66,8 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
 
 }
 
-// get a button press, returns -1 if no button has been pressed
-// otherwise the gpio of the button.
+// get a button press, returns a key_type value which can be
+// NO_KEY if no buttons have been pressed since the last call.
 key_type get_input() {
     int key;
     if(xQueueReceive(inputQueue,&key,0)==pdFALSE)
