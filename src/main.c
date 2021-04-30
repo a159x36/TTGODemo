@@ -152,7 +152,7 @@ void wifi_menu() {
         int sel=0;
     while(1) {
         char *entries[]={"Scan","Connect","Access Point",
-                        get_orientation()?"Landscape":"Portrait", "Back"};
+                        get_orientation()?"Landscape":"Portrait", "Web Server", "Back"};
         sel=demo_menu("Wifi Menu",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
@@ -168,6 +168,9 @@ void wifi_menu() {
                 set_orientation(1-get_orientation());
                 break;
             case 4:
+                webserver();
+                break;
+            case 5:
                 return;
         }
     }
@@ -212,40 +215,6 @@ void app_main() {
 #endif
     graphics_init();
     cls(0);
-/*
-#if USE_WIFI
-
-    // Is time set? If not, tm_year will be (1970 - 1900).
-    if (tm_info->tm_year < (2016 - 1900) && !emulator) {
-        ESP_LOGI(tag,
-                 "Time is not set yet. Connecting to WiFi and getting time "
-                 "over NTP.");
-        setFontColour(0, 200, 200);
-        setFont(FONT_UBUNTU16);
-        print_xy("Time is not set yet", CENTER, CENTER);
-        print_xy("Connecting to WiFi", CENTER, LASTY + getFontHeight() + 2);
-        print_xy("Getting time over NTP", CENTER, LASTY + getFontHeight() + 2);
-        setFontColour(200, 200, 0);
-        print_xy("Wait", CENTER, LASTY + getFontHeight() + 2);
-        flip_frame();
-        if (obtain_time()) {
-            cls(0);
-            setFontColour(0, 200, 0);
-            print_xy("System time is set.", CENTER, LASTY);
-            flip_frame();
-        } else {
-            cls(0);
-            setFontColour(200, 0, 0);
-            print_xy("ERROR.", CENTER, LASTY);
-            flip_frame();
-        }
-        time(&time_now);
-        vTaskDelay(200);
-        //	update_header(NULL, "");
-        //	Wait(-2000);
-    }
-#endif
-*/
     // Initialize the effect displayed
     if (DISPLAY_IMAGE_WAVE) image_wave_init();
     int sel=0;

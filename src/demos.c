@@ -242,7 +242,6 @@ void bubble_demo() {
         printf("err1: %d\n",err);
     }
     err = nvs_get_i32(my_handle, "highscore", &high_score);
-    printf("err: %d\n",err);
     static char score_str[256];
     static pos stars[NSTARS];
     set_orientation(PORTRAIT);
@@ -277,11 +276,9 @@ void bubble_demo() {
         draw_rectangle(bat.x,bat.y,bat.w,bat.h,-1);
         draw_image(&bubble,ball.x,ball.y);
         setFontColour(0, 255, 0);
-        snprintf(score_str,64,"Score: %d",score);
-        print_xy(score_str, 0, 1);
+        gprintf("Score: %d\n",score);
         setFontColour(100, 100, 155);
-        snprintf(score_str,64,"HiScore: %d",high_score);
-        print_xy(score_str, 0, LASTY+16);
+        gprintf("HiScore: %d\n",high_score);
         float dt;
         uint64_t time=esp_timer_get_time();
         dt=(time-last_time)/10000.0; // hundredths of secs since boot;
@@ -369,9 +366,7 @@ void bubble_demo() {
     if(score>high_score) {
         high_score=score;
         err=nvs_set_i32(my_handle, "highscore", score);
-        printf("err: %d\n",err);
         err=nvs_commit(my_handle);
-        printf("err: %d\n",err);
     }
     nvs_close(my_handle);
     vTaskDelay(500/portTICK_PERIOD_MS);

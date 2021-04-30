@@ -20,6 +20,7 @@
 #include "esp_smartconfig.h"
 #include "demos.h"
 #include "lwip/sockets.h"
+#include <esp_http_server.h>
 
 #if USE_WIFI
 static EventGroupHandle_t wifi_event_group;
@@ -42,8 +43,8 @@ void client_task(void *pvParameters);
 TaskHandle_t ctask=NULL;
 static void event_handler(void *arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data) {
-    ESP_LOGI(tag, "WiFi event %s %d\n",event_base,event_id);
-    snprintf(wifi_event,64,"WiFi event %s %d\n",event_base,event_id);
+    ESP_LOGI(tag, "WiFi event: %s %d\n",event_base,event_id);
+    snprintf(wifi_event,64,"%s %d\n",event_base,event_id);
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         if(wifi_mode==STATION)
             esp_wifi_connect();
@@ -53,7 +54,9 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     } else if (event_base == IP_EVENT && ((event_id == IP_EVENT_STA_GOT_IP) || 
     (event_id == IP_EVENT_AP_STAIPASSIGNED))) {
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-        if(wifi_mode==STATION) xTaskCreate(client_task,"ct",2048,NULL,1,&ctask);
+        if(wifi_mode==STATION) {
+            xTaskCreate(client_task,"ct",2048,NULL,1,&ctask);
+        }
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
         esp_wifi_scan_start(NULL,false);
     }
@@ -85,7 +88,8 @@ void send_receive(int sock) {
             len=send(sock,&gpio,1,0);
             printf("Sent %d\n",gpio);
         }
-        received=rx;
+        if(len==1)
+            received=rx;
         vTaskDelay(1);
     }
     communicating=0;
@@ -104,16 +108,23 @@ void server_task(void *pvParameters) {
     listen(listen_sock, 1);
     struct sockaddr_storage source_addr;
     socklen_t addr_len = sizeof(source_addr);
-    int sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
-    send_receive(sock);
-    close(sock);
+    while(1) {
+        int sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
+        if(sock<0) break;
+        send_receive(sock);
+        close(sock);
+    }
+    communicating=0;
     close(listen_sock);
     vTaskDelete(NULL);
 }
 
 void client_task(void *pvParameters) {
+    esp_netif_ip_info_t ip_info;
+    esp_netif_get_ip_info(sta_netif,&ip_info);
+    printf("Client %x %x\n",ip_info.gw.addr, ip_info.ip.addr);
     struct sockaddr_in dest_addr_ip4;
-    dest_addr_ip4.sin_addr.s_addr = inet_addr("192.168.4.1");
+    dest_addr_ip4.sin_addr.s_addr = ip_info.gw.addr;//inet_addr("192.168.4.1");//ip_info.gw.addr;//("192.168.4.1");
     dest_addr_ip4.sin_family = AF_INET;
     dest_addr_ip4.sin_port = htons(80);
     int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
@@ -144,7 +155,7 @@ void init_wifi(wifi_mode_type mode) {
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL) );
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
 
-    uint8_t protocol=WIFI_PROTOCOL_LR;//(WIFI_PROTOCOL_11B|WIFI_PROTOCOL_11G|WIFI_PROTOCOL_11N|WIFI_PROTOCOL_LR);
+    uint8_t protocol=(WIFI_PROTOCOL_11B|WIFI_PROTOCOL_11G|WIFI_PROTOCOL_11N);//|WIFI_PROTOCOL_LR);
     if(mode==ACCESS_POINT) {
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
         esp_wifi_set_protocol(ESP_IF_WIFI_AP,protocol);
@@ -199,7 +210,6 @@ void print_ap_info(wifi_ap_record_t *ap) {
 
 void wifi_ap(void) {
     cls(0);
-    char station_info[32];
     init_wifi(ACCESS_POINT);
     wifi_config_t wifi_config = {
         .ap = {
@@ -223,24 +233,80 @@ void wifi_ap(void) {
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
         draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
-        print_xy("Access Point",5,3);
+        print_xy("Access Point\n",5,3);
         setFont(FONT_UBUNTU16);
         setFontColour(255,255,255);
-        print_xy("Last Wifi Event:",5,LASTY+16);
-        print_xy(wifi_event,5,LASTY+16);
+        gprintf(wifi_event);
         setFontColour(0,255,0);
         if(communicating)
-            print_xy("Communicating",5,LASTY+16);
+            gprintf("Communicating\n");
         setFont(FONT_SMALL);
         esp_wifi_ap_get_sta_list(&wifi_stations);
         for(int i=0;i<wifi_stations.num;i++) {
             uint8_t *mac=wifi_stations.sta[i].mac;
-            snprintf(station_info,32,"%02x:%02x:%02x:%02x:%02x:%02x %d",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5], wifi_stations.sta[i].rssi); 
-            print_xy(station_info,5,LASTY+16);
+            gprintf("%02x:%02x:%02x:%02x:%02x:%02x %d\n",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5], wifi_stations.sta[i].rssi); 
         }
+        if(wifi_stations.num==0) communicating=0;
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
     communicating=0;
+    vTaskDelete(stask);
+    esp_wifi_stop();
+}
+extern char *main_page_html;
+int bg_col=0;
+esp_err_t get_handler(httpd_req_t *req)
+{
+    printf("Get %s\n",req->uri);
+    if(!strcmp(req->uri,"/red")) bg_col=rgbToColour(255,0,0);
+    if(!strcmp(req->uri,"/green")) bg_col=rgbToColour(0,255,0);
+    if(!strcmp(req->uri,"/blue")) bg_col=rgbToColour(0,0,255);
+    ESP_ERROR_CHECK(httpd_resp_send(req, main_page_html , HTTPD_RESP_USE_STRLEN));
+    return ESP_OK;
+}
+/* URI handler structure for GET /uri */
+httpd_uri_t uri_get = {
+    .uri      = "/*",
+    .method   = HTTP_GET,
+    .handler  = get_handler,
+    .user_ctx = NULL
+};
+void webserver(void) {
+    init_wifi(ACCESS_POINT);
+    wifi_config_t wifi_config = {
+        .ap = {
+            .ssid = EXAMPLE_ESP_WIFI_SSID,
+            .ssid_len = strlen(EXAMPLE_ESP_WIFI_SSID),
+            .channel = 13,
+            .password = "",
+            .max_connection = 8,
+            .authmode = WIFI_AUTH_OPEN
+        },
+    };
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+    httpd_handle_t server = NULL;
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    //config.lru_purge_enable = true;
+    config.uri_match_fn = httpd_uri_match_wildcard;
+    // Start the httpd server
+    ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
+    if (httpd_start(&server, &config) == ESP_OK) {
+        // Set URI handlers
+        ESP_LOGI(TAG, "Registering URI handlers");
+        httpd_register_uri_handler(server, &uri_get);
+    }
+    do {
+        cls(0);
+        setFont(FONT_DEJAVU18);
+        setFontColour(255,255,0);
+        draw_rectangle(0,0,display_width,display_height,bg_col);
+        gprintf("Web Server\nConnect to the ESP 32\nAccess Point and go to\nhttp://192.168.4.1/");
+        setFont(FONT_SMALL);
+        setFontColour(255,255,255);
+        print_xy(wifi_event,1,display_height-8);
+        flip_frame();
+    } while(get_input()!=RIGHT_DOWN);
     esp_wifi_stop();
 }
 
@@ -259,20 +325,23 @@ void wifi_connect(void) {
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
         draw_rectangle(3,0,display_width,18,rgbToColour(255,200,0));
-        print_xy("Wifi Station",5,3);
+        print_xy("Wifi Station\n",5,3);
         setFont(FONT_UBUNTU16);
         setFontColour(255,255,255);
-        print_xy("Last Wifi Event:",5,LASTY+16);
-        print_xy(wifi_event,5,LASTY+16);
+        gprintf(wifi_event);
         setFontColour(0,255,0);
         if(communicating)
-            print_xy("Communicating",5,LASTY+16);
+            gprintf("Communicating\n");
         if(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT) {
             wifi_ap_record_t ap;
-            print_xy("Connected",5,LASTY+16);
-            print_xy("",5,LASTY+6);
+            gprintf("Connected\n");
+            esp_netif_ip_info_t ip_info;
+            esp_netif_get_ip_info(sta_netif,&ip_info);
+            gprintf(IPSTR"\n",IP2STR(&ip_info.ip));
+            gprintf(IPSTR"\n",IP2STR(&ip_info.gw));
             esp_wifi_sta_get_ap_info(&ap);
             print_ap_info(&ap);
+            
         }
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
@@ -328,7 +397,7 @@ void wifi_scan(void) {
     } while(get_input()!=RIGHT_DOWN);
     esp_wifi_stop();
 }
-
+/*
 //-------------------------------
 static void initialize_sntp(void) {
     ESP_LOGI(tag, "Initializing SNTP");
@@ -378,4 +447,5 @@ int obtain_time(void) {
     ESP_ERROR_CHECK(esp_wifi_stop());
     return res;
 }
+*/
 #endif

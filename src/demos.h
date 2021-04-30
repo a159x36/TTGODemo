@@ -18,6 +18,7 @@ void bubble_demo();
 void wifi_scan();
 void wifi_connect();
 void wifi_ap();
+void webserver();
 
 // put your wifi ssid name and password in here
 #define WIFI_SSID "MUGuests"
