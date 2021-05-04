@@ -33,7 +33,7 @@
  it displays some demo graphics on the 240x135 LCD on a TTGO T-Display board.
 */
 
-const int TOUCH_PADS[4]={2,3,8,9};
+const int TOUCH_PADS[4]={2,3,9,8};
 
 // for button inputs
 QueueHandle_t inputQueue;
