@@ -38,7 +38,7 @@ const int TOUCH_PADS[4]={2,3,9,8};
 // for button inputs
 QueueHandle_t inputQueue;
 uint64_t lastkeytime=0;
-int emulator=0;
+int is_emulator=0;
 
 extern image_header  bubble;
 
@@ -151,8 +151,9 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
 void wifi_menu() {
         int sel=0;
     while(1) {
-        char *entries[]={"Scan","Connect","Access Point",
-                        get_orientation()?"Landscape":"Portrait", "Web Server", "Back"};
+        char *entries[]={"Scan","Connect","Access Point","MQTT",
+                       // get_orientation()?"Landscape":"Portrait",
+                         "Web Server", "Back"};
         sel=demo_menu("Wifi Menu",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
@@ -165,7 +166,8 @@ void wifi_menu() {
                 wifi_ap();
                 break;
             case 3:
-                set_orientation(1-get_orientation());
+                mqtt();
+                //set_orientation(1-get_orientation());
                 break;
             case 4:
                 webserver();
@@ -192,7 +194,7 @@ void app_main() {
     setenv("TZ", "	NZST-12", 0);
     tzset();
     uint32_t user2=*((uint32_t *)0x3FF64024);
-    if(user2!=0x70000000) emulator=1; 
+    if(user2!=0x70000000) is_emulator=1; 
     // ==========================
     time(&time_now);
     tm_info = localtime(&time_now);
@@ -219,7 +221,7 @@ void app_main() {
     if (DISPLAY_IMAGE_WAVE) image_wave_init();
     int sel=0;
     while(1) {
-        char *entries[]={"Life","Image Wave",emulator?"Spaceship":"Wifi Menu",
+        char *entries[]={"Life","Image Wave","Networking",
                         "Teapots","Bubble Game",
                         get_orientation()?"Landscape":"Portrait"};
         sel=demo_menu("Demo",sizeof(entries)/sizeof(char *),entries,sel);
@@ -231,8 +233,9 @@ void app_main() {
                 image_wave_demo();
                 break;
             case 2:
-                if(emulator) spaceship_demo();
-                else wifi_menu();
+//                if(emulator) spaceship_demo();
+//                else wifi_menu();
+                wifi_menu();
                 break;
             case 3:
                 teapots_demo();
