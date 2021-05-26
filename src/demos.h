@@ -1,17 +1,7 @@
 
-
-typedef enum {
-    NO_KEY,
-    LEFT_DOWN,
-    LEFT_UP,
-    RIGHT_DOWN,
-    RIGHT_UP
-} key_type;
-
 void life_demo();
 void spaceship_demo();
 void image_wave_demo();
-key_type get_input();
 void sensors_demo();
 void teapots_demo();
 void bubble_demo();
@@ -20,6 +10,7 @@ void wifi_connect();
 void wifi_ap();
 void webserver();
 void mqtt();
+void time_demo();
 
 // put your wifi ssid name and password in here
 #define WIFI_SSID "MUGuests"

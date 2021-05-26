@@ -19,6 +19,7 @@
 #include <esp_adc_cal.h>
 #include <nvs_flash.h>
 #include <time.h>
+#include "input_output.h"
 
 const char *tag="T Display";
 // voltage reference calibration for Battery ADC
