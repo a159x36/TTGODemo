@@ -11,6 +11,7 @@ void wifi_ap();
 void webserver();
 void mqtt();
 void time_demo();
+void wifi_settings();
 
 // put your wifi ssid name and password in here
 #define WIFI_SSID "MUGuests"

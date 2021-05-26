@@ -21,7 +21,8 @@
 #include <esp_log.h>
 #include <esp_sntp.h>
 #include <nvs_flash.h>
-
+#include "delete.h"
+#include "shift.h"
 
 
 const int TOUCH_PADS[4]={2,3,9,8};
@@ -190,4 +191,75 @@ vec2 get_touchpads() {
         touch_values[i] = touch_value;
     }
     return xy;
+}
+
+
+const int ROWS=4;
+const int COLS=12;
+const int DEL = 46;
+const int LSHIFT = 36;
+const int RSHIFT = 47;
+const char QWERTY_KEYS[2][48] = {"1234567890-=qwertyuiop[]asdfghjkl;'/ zxcvbnm,.  ",
+                        "!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:\"? ZXCVBNM<>  "};
+
+void draw_keyboard(int topy, int highlight, int alt) {
+    
+
+    char str[2] = {0};
+    draw_rectangle(0, topy, display_width, display_height - topy,
+                   rgbToColour(32, 32, 42));
+    for (int r = 0; r < ROWS; r++)
+        for (int c = 0; c < COLS; c++) {
+            int chi = r * COLS + c;
+            int y = topy + (r * (display_height - topy)) / ROWS;
+            int x = (c * display_width) / COLS;
+            str[0] = QWERTY_KEYS[alt][chi];
+            if (chi == highlight) {
+                draw_rectangle(x, y, display_width / COLS,
+                               (display_height - topy) / ROWS,
+                               rgbToColour(120, 20, 20));
+            }
+            if (chi == DEL)
+                draw_image((image_header *)&delete, x + 8, y + 12);
+            if (chi == LSHIFT || chi == RSHIFT)
+                draw_image((image_header *)&shift, x + 8, y + 12);
+            print_xy(str, x + 4, y + 4);
+        }
+}
+
+char *get_string(char *title) {
+    char string[256]={0};
+    set_orientation(LANDSCAPE);
+    int highlight=0;
+    int topy=48;
+    int alt=0;
+    
+    int frames=0;
+    int key;
+    do {
+        cls(0);
+        draw_rectangle(3,0,display_width,20,rgbToColour(255,200,0));
+        setFontColour(0,0,0);
+        setFont(FONT_DEJAVU18);
+        print_xy(title,5,3);
+        setFontColour(255,255,255);
+        setFont(FONT_UBUNTU16);
+        print_xy(string,5,24);
+
+        draw_keyboard(48,highlight,alt);
+        vec2 tp=get_touchpads();
+        highlight=(highlight+tp.x+tp.y*COLS+ROWS*COLS)%(ROWS*COLS);
+        
+        flip_frame();
+        key=get_input();
+        if(key==LEFT_DOWN) {
+            if(highlight==DEL && strlen(string)>0)
+                string[strlen(string)-1]=0;
+            else if (highlight==LSHIFT || highlight==RSHIFT)
+                    alt=1-alt;
+                else
+                    string[strlen(string)]=QWERTY_KEYS[alt][highlight];
+        }
+    } while(key!=RIGHT_DOWN);
+    return string;
 }

@@ -25,8 +25,7 @@
 #include "mqtt_client.h"
 #include "FreeSansBold24pt7b.h"
 #include <driver/touch_pad.h>
-#include "delete.h"
-#include "shift.h"
+
 #include "graphics3d.h"
 #include "input_output.h"
 
@@ -44,11 +43,8 @@ typedef enum {
 wifi_mode_type wifi_mode=0;
 static esp_netif_t *demo_netif = NULL;
 int bg_col=0;
-//#define DEFAULT_SCAN_LIST_SIZE 16
 #define TAG "Wifi"
-/* The event group allows multiple bits for each event,
-   but we only care about one event - are we connected
-   to the AP with an IP? */
+
 const int CONNECTED_BIT = 0x00000001;
 char wifi_event[64];
 void client_task(void *pvParameters);
@@ -93,8 +89,6 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     }
 }
  
-//-------------------------------
-
 #define DEFAULT_SCAN_LIST_SIZE 24
 
 int received=1;
@@ -290,7 +284,6 @@ void print_ap_info(wifi_ap_record_t *ap) {
     setFontColour(255,255,255);
     print_xy((char *)(ap->ssid),65,LASTY);
     print_xy("",1,LASTY+10);
-    
 }
 
 void wifi_ap(void) {
@@ -373,7 +366,6 @@ void webserver(void) {
 }
 
 void wifi_connect(void) {
-    get_string("Hello");
     cls(0);
     wifi_event[0]=0;
     init_wifi(STATION);
@@ -410,6 +402,9 @@ void wifi_connect(void) {
     esp_wifi_stop();
 }
 
+void wifi_settings() {
+    get_string("Password");
+}
 void wifi_scan(void) {
     cls(0);
     if(is_emulator) {
@@ -550,77 +545,6 @@ void time_demo() {
     } while(get_input()!=RIGHT_DOWN);
     //sntp_stop();
     //esp_wifi_stop();
-}
-
-const int ROWS=4;
-const int COLS=12;
-const int DEL = 46;
-const int LSHIFT = 36;
-const int RSHIFT = 47;
-const char QWERTY_KEYS[2][48] = {"1234567890-=qwertyuiop[]asdfghjkl;'/ zxcvbnm,.  ",
-                        "!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:\"? ZXCVBNM<>  "};
-
-void draw_keyboard(int topy, int highlight, int alt) {
-    
-
-    char str[2] = {0};
-    draw_rectangle(0, topy, display_width, display_height - topy,
-                   rgbToColour(32, 32, 42));
-    for (int r = 0; r < ROWS; r++)
-        for (int c = 0; c < COLS; c++) {
-            int chi = r * COLS + c;
-            int y = topy + (r * (display_height - topy)) / ROWS;
-            int x = (c * display_width) / COLS;
-            str[0] = QWERTY_KEYS[alt][chi];
-            if (chi == highlight) {
-                draw_rectangle(x, y, display_width / COLS,
-                               (display_height - topy) / ROWS,
-                               rgbToColour(120, 20, 20));
-            }
-            if (chi == DEL)
-                draw_image((image_header *)&delete, x + 8, y + 12);
-            if (chi == LSHIFT || chi == RSHIFT)
-                draw_image((image_header *)&shift, x + 8, y + 12);
-            print_xy(str, x + 4, y + 4);
-        }
-}
-
-char * get_string(char *title) {
-    
-    char string[256]={0};
-    set_orientation(LANDSCAPE);
-    int highlight=0;
-    int topy=48;
-    int alt=0;
-    
-    int frames=0;
-    int key;
-    do {
-        cls(0);
-        draw_rectangle(3,0,display_width,20,rgbToColour(255,200,0));
-        setFontColour(0,0,0);
-        setFont(FONT_DEJAVU18);
-        print_xy(title,5,3);
-        setFontColour(255,255,255);
-        setFont(FONT_UBUNTU16);
-        print_xy(string,5,24);
-
-        draw_keyboard(48,highlight,alt);
-        vec2 tp=get_touchpads();
-        highlight=(highlight+tp.x+tp.y*COLS+ROWS*COLS)%(ROWS*COLS);
-        
-        flip_frame();
-        key=get_input();
-        if(key==LEFT_DOWN) {
-            if(highlight==DEL && strlen(string)>0)
-                string[strlen(string)-1]=0;
-            else if (highlight==LSHIFT || highlight==RSHIFT)
-                    alt=1-alt;
-                else
-                    string[strlen(string)]=QWERTY_KEYS[alt][highlight];
-        }
-    } while(key!=RIGHT_DOWN);
-    return string;
 }
 
 #endif

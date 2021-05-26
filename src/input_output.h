@@ -12,3 +12,4 @@ void input_output_init();
 int demo_menu(char * title, int nentries, char *entries[], int select);
 key_type get_input();
 vec2 get_touchpads();
+char *get_string(char *title);

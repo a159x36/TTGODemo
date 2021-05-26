@@ -36,13 +36,11 @@
 
 int is_emulator=0;
 
-
 void wifi_menu() {
-        int sel=0;
+    int sel=0;
     while(1) {
-        char *entries[]={"Scan","Connect","Access Point","MQTT","Time",
-                       // get_orientation()?"Landscape":"Portrait",
-                         "Web Server", "Back"};
+        char *entries[]={"Scan","Connect","Access Point",
+                         "Settings", "Back"};
         sel=demo_menu("Wifi Menu",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
@@ -55,20 +53,41 @@ void wifi_menu() {
                 wifi_ap();
                 break;
             case 3:
-                mqtt();
-                //set_orientation(1-get_orientation());
+                wifi_settings();
                 break;
             case 4:
-                time_demo();
-                break;
-            case 5:
-                webserver();
-                break;
-            case 6:
                 return;
         }
     }
 }
+void network_menu() {
+    int sel=0;
+    while(1) {
+        char *entries[]={"Wifi","MQTT","Time","Web Server",get_orientation()?"Landscape":"Portrait","Back"};
+        sel=demo_menu("Network Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        switch(sel) {
+            case 0:
+                wifi_menu();
+                break;
+            case 1:
+                mqtt();
+                break;
+            case 2:
+                time_demo();
+                break;
+            case 3:
+                webserver();
+                break;
+            case 4:
+                set_orientation(1-get_orientation());
+                break;
+            case 5:
+                return;
+        }
+    }
+}
+
+
 
 void app_main() {
 
@@ -113,7 +132,7 @@ void app_main() {
             case 2:
 //                if(emulator) spaceship_demo();
 //                else wifi_menu();
-                wifi_menu();
+                network_menu();
                 break;
             case 3:
                 teapots_demo();
