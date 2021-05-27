@@ -233,16 +233,8 @@ int overlap(obj *r1, obj *r2) {
 extern image_header  bubble;
 
 void bubble_demo() {
-    esp_err_t err;
-    nvs_handle_t my_handle;
     static int high_score=0;
-    err = nvs_open("storage", NVS_READWRITE, &my_handle);
-    if(err!=0) {
-        nvs_flash_init();
-        err = nvs_open("storage", NVS_READWRITE, &my_handle);
-        printf("err1: %d\n",err);
-    }
-    err = nvs_get_i32(my_handle, "highscore", &high_score);
+    high_score=storage_read_int("highscore",0);
     static char score_str[256];
     static pos stars[NSTARS];
     set_orientation(PORTRAIT);
@@ -366,10 +358,8 @@ void bubble_demo() {
     flip_frame();
     if(score>high_score) {
         high_score=score;
-        err=nvs_set_i32(my_handle, "highscore", score);
-        err=nvs_commit(my_handle);
+        storage_write_int("highscore",score);
     }
-    nvs_close(my_handle);
     vTaskDelay(500/portTICK_PERIOD_MS);
     while(get_input());
     while(get_input()!=RIGHT_DOWN)

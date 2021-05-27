@@ -88,6 +88,8 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
     int frame=0;
     while(1) {
         cls(rgbToColour(100,20,20));
+        setFont(FONT_DEJAVU18);
+        //int twidth=print_xy(title, 0, -1);
         draw_rectangle(0,3,display_width,24,rgbToColour(220,220,0));
         draw_rectangle(0,select*18+24+3,display_width,18,rgbToColour(0,180,180));
         pos=(vec2){display_width/2,display_height/2};
@@ -103,13 +105,22 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
         if(rotation.x>2*PI) rotation.x-=2*PI;
         if(rotation.y>2*PI) rotation.y-=2*PI;
         if(rotation.z>2*PI) rotation.z-=2*PI;
-        setFont(FONT_DEJAVU18);
         setFontColour(0, 0, 0);
         print_xy(title, 10, 8);
         setFontColour(255, 255, 255);
         setFont(FONT_UBUNTU16);
         for(int i=0;i<nentries;i++) {
             print_xy(entries[i],10,LASTY+((i==0)?21:18));
+        }
+        if(get_orientation()) {
+            print_xy("\x86",4,display_height-16); // right arrow
+            print_xy("\x88",display_width-16,display_height-16); // down arrow
+        }
+        else {
+            setFontColour(0, 0, 0);
+            print_xy("\x88",display_width-16,4); // right arrow
+            setFontColour(255, 255, 255);
+            print_xy("\x86",display_width-16,display_height-16); // down arrow
         }
         for (int i = 0; i <4; i++) {
             uint16_t touch_value;
@@ -199,8 +210,8 @@ const int COLS=12;
 const int DEL = 46;
 const int LSHIFT = 36;
 const int RSHIFT = 47;
-const char QWERTY_KEYS[2][48] = {"1234567890-=qwertyuiop[]asdfghjkl;'/ zxcvbnm,.  ",
-                        "!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:\"? ZXCVBNM<>  "};
+const char QWERTY_KEYS[2][48] = {"1234567890-=qwertyuiop[]asdfghjkl;'/\x80zxcvbnm,.\x7f\x81",
+                        "!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:\"?\x80ZXCVBNM<>\x7f\x81"};
 
 void draw_keyboard(int topy, int highlight, int alt) {
     
@@ -219,22 +230,16 @@ void draw_keyboard(int topy, int highlight, int alt) {
                                (display_height - topy) / ROWS,
                                rgbToColour(120, 20, 20));
             }
-            if (chi == DEL)
-                draw_image((image_header *)&delete, x + 8, y + 12);
-            if (chi == LSHIFT || chi == RSHIFT)
-                draw_image((image_header *)&shift, x + 8, y + 12);
             print_xy(str, x + 4, y + 4);
         }
 }
 
-char *get_string(char *title) {
-    char string[256]={0};
+void get_string(char *title, char *string, int len) {
+
     set_orientation(LANDSCAPE);
     int highlight=0;
-    int topy=48;
     int alt=0;
     
-    int frames=0;
     int key;
     do {
         cls(0);
@@ -257,9 +262,53 @@ char *get_string(char *title) {
                 string[strlen(string)-1]=0;
             else if (highlight==LSHIFT || highlight==RSHIFT)
                     alt=1-alt;
-                else
+                else if (strlen(string)<len-1)
                     string[strlen(string)]=QWERTY_KEYS[alt][highlight];
         }
     } while(key!=RIGHT_DOWN);
-    return string;
+}
+
+nvs_handle_t storage_open(nvs_open_mode_t mode) {
+    esp_err_t err;
+    nvs_handle_t my_handle;
+    err = nvs_open("storage", mode, &my_handle);
+    if(err!=0) {
+        nvs_flash_init();
+        err = nvs_open("storage", mode, &my_handle);
+        printf("err1: %d\n",err);
+    }
+    return my_handle;
+}
+
+int storage_read_int(char *name, int def) {
+    nvs_handle_t handle=storage_open(NVS_READONLY);
+    int val=def;
+    nvs_get_i32(handle, name, &val);
+    nvs_close(handle);
+    return val;
+}
+
+void storage_write_int(char *name, int val) {
+    nvs_handle_t handle=storage_open(NVS_READWRITE);
+    nvs_set_i32(handle, name, val);
+    nvs_commit(handle);
+    nvs_close(handle);
+}
+
+
+void storage_read_string(char *name, char *def, char *dest, int len) {
+    nvs_handle_t handle=storage_open(NVS_READONLY);
+    strncpy(dest,def,len);
+    size_t length=len;
+    nvs_get_str(handle, name, dest, &length);
+    nvs_close(handle);
+    printf("Read %s = %s\n",name,dest);
+}
+
+void storage_write_string(char *name, char *val) {
+    nvs_handle_t handle=storage_open(NVS_READWRITE);
+    nvs_set_str(handle, name, val);
+    nvs_commit(handle);
+    nvs_close(handle);
+     printf("Wrote %s = %s\n",name,val);
 }

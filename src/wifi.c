@@ -25,11 +25,10 @@
 #include "mqtt_client.h"
 #include "FreeSansBold24pt7b.h"
 #include <driver/touch_pad.h>
+#include "esp_wpa2.h"
 
 #include "graphics3d.h"
 #include "input_output.h"
-
-char * get_string(char *title);
 
 #if USE_WIFI
 static EventGroupHandle_t wifi_event_group;
@@ -193,8 +192,6 @@ void init_eth() {
     return;
 }
 
-#define EXAMPLE_ESP_WIFI_SSID "ESP32 AP"
-
 void init_wifi(wifi_mode_type mode) {
    
     if(is_emulator) {
@@ -238,8 +235,21 @@ void init_wifi(wifi_mode_type mode) {
     } else {
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         esp_wifi_set_protocol(ESP_IF_WIFI_STA,protocol);
-        wifi_config_t wifi_config = { .sta ={.ssid = EXAMPLE_ESP_WIFI_SSID,.password = WIFI_PASSWORD}}; 
+        char ssid[32];
+        storage_read_string("ssid","",ssid,sizeof(ssid));
+        char password[64];
+        storage_read_string("password","", password, sizeof(password));
+        char username[64];
+        storage_read_string("username","", username, sizeof(username));
+        wifi_config_t wifi_config = {0};
+        strncpy((char *)wifi_config.sta.ssid,ssid,sizeof(wifi_config.sta.ssid));
+        strncpy((char *)wifi_config.sta.password,password,sizeof(wifi_config.sta.password));
         ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+        if(strlen(username)!=0) {
+            ESP_ERROR_CHECK( esp_wifi_sta_wpa2_ent_set_username((uint8_t *)username, strlen(username)) );
+            ESP_ERROR_CHECK( esp_wifi_sta_wpa2_ent_set_password((uint8_t *)password, strlen(password)) );
+            ESP_ERROR_CHECK( esp_wifi_sta_wpa2_ent_enable() );
+        }
     }
     ESP_ERROR_CHECK(esp_wifi_start());
 }
@@ -403,7 +413,7 @@ void wifi_connect(void) {
 }
 
 void wifi_settings() {
-    get_string("Password");
+   // get_string("Password","");
 }
 void wifi_scan(void) {
     cls(0);
@@ -465,12 +475,33 @@ void wifi_scan(void) {
         }
         flip_frame();
         c=get_input();
+        if(c==RIGHT_DOWN) {
+            highlight= (highlight+1)%ap_number;
+        }
         if(c==LEFT_DOWN) {
             uint8_t *ap_name=ap_list[highlight].ssid;
-            get_string("Enter password");
-
+            storage_write_string("ssid",(char *)ap_name);
+            wifi_auth_mode_t auth=ap_list[highlight].authmode;
+            printf("Wifi Authmode %d\n",auth);
+            if(auth==WIFI_AUTH_WPA2_ENTERPRISE) {
+                char username[64];
+                char password[64];
+                storage_read_string("username","",username,sizeof(username));
+                get_string("Username",username,sizeof(username));
+                storage_write_string("username",username);
+                storage_read_string("password","",password,sizeof(password));
+                get_string("Password",password,sizeof(password));
+                storage_write_string("password",password);
+            }
+            if(auth==WIFI_AUTH_WPA2_PSK || auth==WIFI_AUTH_WPA_PSK || auth==WIFI_AUTH_WEP) {
+                char password[64];
+                storage_read_string("password","",password,sizeof(password));
+                get_string("Password",password,sizeof(password));
+                storage_write_string("password",password);
+            }
+            return;
         }
-    } while(c!=RIGHT_DOWN);
+    } while(true);
     esp_wifi_stop();
 }
 
