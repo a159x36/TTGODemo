@@ -63,7 +63,7 @@ void wifi_menu() {
 void network_menu() {
     int sel=0;
     while(1) {
-        char *entries[]={"Wifi","MQTT","Time","Web Server",get_orientation()?"Landscape":"Portrait","Back"};
+        char *entries[]={"Wifi","MQTT","Time","Web Server","Web Client", /*get_orientation()?"Landscape":"Portrait",*/"Back"};
         sel=demo_menu("Network Menu",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
@@ -79,7 +79,8 @@ void network_menu() {
                 webserver();
                 break;
             case 4:
-                set_orientation(1-get_orientation());
+                web_client();
+//                set_orientation(1-get_orientation());
                 break;
             case 5:
                 return;

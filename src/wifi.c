@@ -23,77 +23,31 @@
 #include <esp_http_server.h>
 #include "esp_eth.h"
 #include "mqtt_client.h"
-#include "FreeSansBold24pt7b.h"
 #include <driver/touch_pad.h>
 #include "esp_wpa2.h"
 
 #include "graphics3d.h"
 #include "input_output.h"
+#include "networking.h"
 
-#if USE_WIFI
-static EventGroupHandle_t wifi_event_group;
-typedef enum {
-    SCAN,
-    STATION,
-    ACCESS_POINT,
-    ETHERNET
-} wifi_mode_type;
+
 
 wifi_mode_type wifi_mode=0;
-static esp_netif_t *demo_netif = NULL;
-int bg_col=0;
+
 #define TAG "Wifi"
 
-const int CONNECTED_BIT = 0x00000001;
-char wifi_event[64];
-void client_task(void *pvParameters);
-TaskHandle_t ctask=NULL;
-static void event_handler(void *arg, esp_event_base_t event_base,
-                                int32_t event_id, void* event_data) {
-    ESP_LOGI(tag, "WiFi event: %s %d\n",event_base,event_id);
-    snprintf(wifi_event,64,"%s %d\n",event_base,event_id);
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        if(wifi_mode==STATION)
-            esp_wifi_connect();
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        esp_wifi_connect();
-        xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
-    } else if (event_base == IP_EVENT && ((event_id == IP_EVENT_STA_GOT_IP) || 
-    (event_id == IP_EVENT_AP_STAIPASSIGNED) || (event_id == IP_EVENT_ETH_GOT_IP))) {
-        xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
-        if(wifi_mode==STATION && event_id == IP_EVENT_STA_GOT_IP) {
-            xTaskCreate(client_task,"ct",2048,NULL,1,&ctask);
-        }
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
-        esp_wifi_scan_start(NULL,false);
-    } else if (!strcmp(event_base,"MQTT_EVENTS")) {
-        esp_mqtt_event_handle_t event = event_data;
-        if(event_id==MQTT_EVENT_CONNECTED) {
-            esp_mqtt_client_handle_t client = event->client;
-            ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-            esp_netif_ip_info_t ip_info;
-            esp_netif_get_ip_info(demo_netif,&ip_info);
-            char buf[64];
-            snprintf(buf,sizeof(buf),"Connected:"IPSTR,IP2STR(&ip_info.ip));
-            esp_mqtt_client_publish(client, "/topic/a159236", buf, 0, 1, 0);
-            esp_mqtt_client_subscribe(client, "/topic/a159236", 0);
-        } else if(event_id==MQTT_EVENT_DATA) {    
-            char message[event->data_len+1];
-            snprintf(message,event->data_len+1,"%s",event->data);
-            snprintf(wifi_event,64,"%s %d\n%s\n",event_base,event_id,message);
-            int r,g,b;
-            if(sscanf(message,"%d,%d,%d",&r,&g,&b)==3)
-                bg_col=rgbToColour(r,g,b);
-        }
-    }
-}
+
+//void client_task(void *pvParameters);
+//TaskHandle_t ctask=NULL;
+
  
 #define DEFAULT_SCAN_LIST_SIZE 24
 
-int received=1;
-int communicating=0;
+//int received=1;
+//int communicating=0;
 
 
+/*
 void send_receive(int sock) {
     int err=fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
     printf("Send_rec %d\n",err);
@@ -159,38 +113,11 @@ void client_task(void *pvParameters) {
     vTaskDelete(NULL);
     ctask=NULL;
 }
+*/
 
-esp_eth_handle_t eth_handle = NULL;
-void *glue = NULL;
 
-void init_eth() {
-    esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
-    if(demo_netif==NULL) {    
-        esp_netif_init();
-        wifi_event_group = xEventGroupCreate();
-        ESP_ERROR_CHECK(esp_event_loop_create_default());
-        demo_netif = esp_netif_new(&cfg);// &netif_config);
-        // Set default handlers to process TCP/IP stuffs
-        ESP_ERROR_CHECK(esp_eth_set_default_handlers(demo_netif));
-        // Register user defined event handers
-        ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID,
-                                                &event_handler, NULL));
-        ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID,
-                                                &event_handler, NULL));
-        eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
-        eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
-        esp_eth_mac_t *mac = esp_eth_mac_new_openeth(&mac_config);
-        esp_eth_phy_t *phy = esp_eth_phy_new_dp83848(&phy_config);
-        esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
-        
-        ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle));
-        glue=esp_eth_new_netif_glue(eth_handle);
-        ESP_ERROR_CHECK(esp_netif_attach(demo_netif, glue));
-        /* start Ethernet driver state machine */
-        ESP_ERROR_CHECK(esp_eth_start(eth_handle));
-    }
-    return;
-}
+
+
 
 void init_wifi(wifi_mode_type mode) {
    
@@ -198,20 +125,20 @@ void init_wifi(wifi_mode_type mode) {
         init_eth();
         return;
     }
-    wifi_event_group = xEventGroupCreate();
+    network_event_group = xEventGroupCreate();
     wifi_mode=mode;
-    if(demo_netif!=NULL) {
+    if(network_interface!=NULL) {
         esp_event_loop_delete_default();
-        esp_wifi_clear_default_wifi_driver_and_handlers(demo_netif);
-        esp_netif_destroy(demo_netif);
+        esp_wifi_clear_default_wifi_driver_and_handlers(network_interface);
+        esp_netif_destroy(network_interface);
     } else
         esp_netif_init();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     if(mode==ACCESS_POINT)
-        demo_netif = esp_netif_create_default_wifi_ap();
+        network_interface = esp_netif_create_default_wifi_ap();
     else
-        demo_netif = esp_netif_create_default_wifi_sta();
+        network_interface = esp_netif_create_default_wifi_sta();
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL) );
@@ -264,7 +191,7 @@ int ap_cmp(const void *ap1, const void *ap2) {
     return n;
 }
 
-wifi_sta_list_t wifi_stations;
+
 
 void print_ap_info(wifi_ap_record_t *ap) {
     setFont(FONT_SMALL);
@@ -300,13 +227,15 @@ void print_ap_info(wifi_ap_record_t *ap) {
 void wifi_ap(void) {
     cls(0);
     init_wifi(ACCESS_POINT);
+    wifi_sta_list_t wifi_stations;
 
-    TaskHandle_t stask;
-    xTaskCreate(server_task,"st",2048,NULL,1,&stask);
+//    TaskHandle_t stask;
+//    xTaskCreate(server_task,"st",2048,NULL,1,&stask);
     do {
+        /*
         if(received==1) 
             cls(rgbToColour(128,0,0));
-        else
+        else */
             cls(0);
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
@@ -314,77 +243,34 @@ void wifi_ap(void) {
         print_xy("Access Point\n",5,3);
         setFont(FONT_UBUNTU16);
         setFontColour(255,255,255);
-        gprintf(wifi_event);
+        gprintf(network_event);
         setFontColour(0,255,0);
-        if(communicating)
-            gprintf("Communicating\n");
+//        if(communicating)
+//            gprintf("Communicating\n");
         setFont(FONT_SMALL);
         esp_wifi_ap_get_sta_list(&wifi_stations);
         for(int i=0;i<wifi_stations.num;i++) {
             uint8_t *mac=wifi_stations.sta[i].mac;
             gprintf("%02x:%02x:%02x:%02x:%02x:%02x %d\n",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5], wifi_stations.sta[i].rssi); 
         }
-        if(wifi_stations.num==0) communicating=0;
+//        if(wifi_stations.num==0) communicating=0;
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
-    communicating=0;
-    vTaskDelete(stask);
-    esp_wifi_stop();
+//    communicating=0;
+//    vTaskDelete(stask);
+//    esp_wifi_stop();
 }
-extern char *main_page_html;
 
-esp_err_t get_handler(httpd_req_t *req)
-{
-    printf("Get %s\n",req->uri);
-    if(!strcmp(req->uri,"/red")) bg_col=rgbToColour(255,0,0);
-    if(!strcmp(req->uri,"/green")) bg_col=rgbToColour(0,255,0);
-    if(!strcmp(req->uri,"/blue")) bg_col=rgbToColour(0,0,255);
-    ESP_ERROR_CHECK(httpd_resp_send(req, main_page_html , HTTPD_RESP_USE_STRLEN));
-    return ESP_OK;
-}
-/* URI handler structure for GET /uri */
-httpd_uri_t uri_get = {
-    .uri      = "/*",
-    .method   = HTTP_GET,
-    .handler  = get_handler,
-    .user_ctx = NULL
-};
-void webserver(void) {
-    init_wifi(ACCESS_POINT);
-    httpd_handle_t server = NULL;
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    //config.lru_purge_enable = true;
-    config.uri_match_fn = httpd_uri_match_wildcard;
-    // Start the httpd server
-    ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
-    if (httpd_start(&server, &config) == ESP_OK) {
-        // Set URI handlers
-        ESP_LOGI(TAG, "Registering URI handlers");
-        httpd_register_uri_handler(server, &uri_get);
-    }
-    do {
-        cls(0);
-        setFont(FONT_DEJAVU18);
-        setFontColour(255,255,0);
-        draw_rectangle(0,0,display_width,display_height,bg_col);
-        gprintf("Web Server\nConnect to the ESP 32\nAccess Point and go to\nhttp://192.168.4.1/");
-        setFont(FONT_SMALL);
-        setFontColour(255,255,255);
-        print_xy(wifi_event,1,display_height-8);
-        flip_frame();
-    } while(get_input()!=RIGHT_DOWN);
-    esp_wifi_stop();
-}
 
 void wifi_connect(void) {
     cls(0);
-    wifi_event[0]=0;
+    network_event[0]=0;
     init_wifi(STATION);
 
     do {
-        if(received==1) 
-            cls(rgbToColour(128,0,0));
-        else
+//        if(received==1) 
+//            cls(rgbToColour(128,0,0));
+//        else
             cls(0);
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
@@ -392,15 +278,15 @@ void wifi_connect(void) {
         print_xy("Wifi Station\n",5,3);
         setFont(FONT_UBUNTU16);
         setFontColour(255,255,255);
-        gprintf(wifi_event);
+        gprintf(network_event);
         setFontColour(0,255,0);
-        if(communicating)
-            gprintf("Communicating\n");
-        if(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT) {
+//        if(communicating)
+//            gprintf("Communicating\n");
+        if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
             wifi_ap_record_t ap;
             gprintf("Connected\n");
             esp_netif_ip_info_t ip_info;
-            esp_netif_get_ip_info(demo_netif,&ip_info);
+            esp_netif_get_ip_info(network_interface,&ip_info);
             gprintf(IPSTR"\n",IP2STR(&ip_info.ip));
             gprintf(IPSTR"\n",IP2STR(&ip_info.gw));
             esp_wifi_sta_get_ap_info(&ap);
@@ -409,8 +295,8 @@ void wifi_connect(void) {
         }
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
-    communicating=0;
-    esp_wifi_stop();
+//    communicating=0;
+//    esp_wifi_stop();
 }
 
 void edit_stored_string(char *name, char *prompt) {
@@ -505,78 +391,3 @@ void wifi_scan(void) {
     } while(true);
     esp_wifi_stop();
 }
-
-void mqtt() {
-    init_wifi(STATION);
-    esp_mqtt_client_config_t mqtt_cfg = { .uri = "mqtt://mail.marginz.co.nz" };
-    esp_mqtt_client_handle_t client = NULL;
-    char c;
-    do {
-        cls(bg_col);
-        setFont(FONT_DEJAVU18);
-        setFontColour(0,0,0);
-        draw_rectangle(3,0,display_width,18,rgbToColour(255,200,0));
-        print_xy("MQTT\n",5,3);
-        setFont(FONT_UBUNTU16);
-        setFontColour(255,255,255);
-        gprintf(wifi_event);
-        setFontColour(0,255,0);
-        if(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT) {
-            gprintf("Connected\n");
-            if(client==NULL) {
-                client=esp_mqtt_client_init(&mqtt_cfg);
-                esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, event_handler, NULL);
-                esp_mqtt_client_start(client);
-            }
-            esp_netif_ip_info_t ip_info;
-            esp_netif_get_ip_info(demo_netif,&ip_info);
-            gprintf(IPSTR"\n",IP2STR(&ip_info.ip));
-            gprintf(IPSTR"\n",IP2STR(&ip_info.gw));
-        }
-        flip_frame();
-        c=get_input();
-        if(c==LEFT_DOWN)
-            esp_mqtt_client_publish(client, "/topic/a159236", "left button", 0, 1, 0);
-    } while(c!=RIGHT_DOWN);
-//    esp_mqtt_client_stop(client);
-//    esp_mqtt_client_destroy(client);
-}
-
-void time_demo() {
-    init_wifi(STATION);
-    int sntp_status=0;
-    do {
-        cls(0);
-        setFont(FONT_DEJAVU18);
-        setFontColour(0,0,0);
-        draw_rectangle(3,0,display_width,18,rgbToColour(255,200,0));
-        print_xy("Time\n",5,3);
-        setFont(FONT_UBUNTU16);
-        setFontColour(255,255,255);
-        gprintf(wifi_event);
-        if(xEventGroupGetBits(wifi_event_group) & CONNECTED_BIT) {
-            if(sntp_status==0) {
-                sntp_setoperatingmode(SNTP_OPMODE_POLL);
-                sntp_setservername(0, "pool.ntp.org");
-                sntp_init();
-                sntp_status=1;
-            }
-            time(&time_now);
-            tm_info = localtime(&time_now);
-            setFont(FreeSansBold24pt7b);
-            struct timeval tv_now;
-            gettimeofday(&tv_now, NULL);
-            if(tm_info->tm_year < (2016 - 1900) )
-                setFontColour(255,0,0);
-                else
-                setFontColour(0,255,0);
-            gprintf("\n%2d:%02d:%02d", tm_info->tm_hour,
-                 tm_info->tm_min, tm_info->tm_sec);
-        }
-        flip_frame();
-    } while(get_input()!=RIGHT_DOWN);
-    //sntp_stop();
-    //esp_wifi_stop();
-}
-
-#endif

@@ -9,6 +9,7 @@ void wifi_scan();
 void wifi_connect();
 void wifi_ap();
 void webserver();
+void web_client();
 void mqtt();
 void time_demo();
 void edit_wifi_settings(int i);

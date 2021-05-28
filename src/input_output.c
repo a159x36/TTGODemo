@@ -135,14 +135,14 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
             print_xy(entries[i],10,LASTY+((i==0)?21:18));
         }
         if(get_orientation()) {
-            print_xy("\x86",4,display_height-16); // right arrow
-            print_xy("\x88",display_width-16,display_height-16); // down arrow
+            print_xy("\x86",4,display_height-16); // down arrow 
+            print_xy("\x90",display_width-16,display_height-16); // OK
         }
         else {
             setFontColour(0, 0, 0);
-            print_xy("\x88",display_width-16,4); // right arrow
+            print_xy("\x90",display_width-16,4); // OK
             setFontColour(255, 255, 255);
-            print_xy("\x86",display_width-16,display_height-16); // down arrow
+            print_xy("\x86",display_width-16,display_height-16); // down arrow 
         }
         for (int i = 0; i <4; i++) {
             uint16_t touch_value;
@@ -272,7 +272,7 @@ void get_string(char *title, char *string, int len) {
     int highlight=ROWS*COLS-1;
     int alt=0;
     int control=4;
-    char controls[]="\x88\x89\x86\x87\x81"; // right,left,down,up,enter
+    char controls[]="\x88\x89\x86\x87\x90"; // right,left,down,up,enter
     int key;
     do {
         cls(0);
