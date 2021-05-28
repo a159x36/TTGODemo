@@ -53,7 +53,7 @@ void wifi_menu() {
                 wifi_ap();
                 break;
             case 3:
-                wifi_settings();
+                edit_wifi_settings(3);
                 break;
             case 4:
                 return;

@@ -222,9 +222,10 @@ void init_wifi(wifi_mode_type mode) {
     if(mode==ACCESS_POINT) {
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
         esp_wifi_set_protocol(ESP_IF_WIFI_AP,protocol);
+        #define SSID "ESP32"
         wifi_config_t wifi_config = { .ap = {
-                .ssid = EXAMPLE_ESP_WIFI_SSID,
-                .ssid_len = strlen(EXAMPLE_ESP_WIFI_SSID),
+                .ssid = SSID,
+                .ssid_len = strlen(SSID),
                 .channel = 13,
                 .password = WIFI_PASSWORD,
                 .max_connection = 8,
@@ -412,8 +413,18 @@ void wifi_connect(void) {
     esp_wifi_stop();
 }
 
-void wifi_settings() {
-   // get_string("Password","");
+void edit_stored_string(char *name, char *prompt) {
+    char val[64];
+    storage_read_string(name,"",val,sizeof(val));
+    get_string(prompt,val,sizeof(val));
+    storage_write_string(name,val);
+}
+
+void edit_wifi_settings(int i) {
+    if(i&2)
+        edit_stored_string("username","Username");
+    if(i&1)
+        edit_stored_string("password","Password");
 }
 void wifi_scan(void) {
     cls(0);
@@ -475,29 +486,19 @@ void wifi_scan(void) {
         }
         flip_frame();
         c=get_input();
-        if(c==RIGHT_DOWN) {
+        if(c==LEFT_DOWN) {
             highlight= (highlight+1)%ap_number;
         }
-        if(c==LEFT_DOWN) {
+        if(c==RIGHT_DOWN) {
             uint8_t *ap_name=ap_list[highlight].ssid;
             storage_write_string("ssid",(char *)ap_name);
             wifi_auth_mode_t auth=ap_list[highlight].authmode;
             printf("Wifi Authmode %d\n",auth);
             if(auth==WIFI_AUTH_WPA2_ENTERPRISE) {
-                char username[64];
-                char password[64];
-                storage_read_string("username","",username,sizeof(username));
-                get_string("Username",username,sizeof(username));
-                storage_write_string("username",username);
-                storage_read_string("password","",password,sizeof(password));
-                get_string("Password",password,sizeof(password));
-                storage_write_string("password",password);
+                edit_wifi_settings(3);
             }
             if(auth==WIFI_AUTH_WPA2_PSK || auth==WIFI_AUTH_WPA_PSK || auth==WIFI_AUTH_WEP) {
-                char password[64];
-                storage_read_string("password","",password,sizeof(password));
-                get_string("Password",password,sizeof(password));
-                storage_write_string("password",password);
+                edit_wifi_settings(1);
             }
             return;
         }

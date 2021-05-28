@@ -11,6 +11,7 @@
 #include <driver/touch_pad.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
+#include <freertos/timers.h>
 #include <freertos/task.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,23 +22,37 @@
 #include <esp_log.h>
 #include <esp_sntp.h>
 #include <nvs_flash.h>
-#include "delete.h"
-#include "shift.h"
 
 
 const int TOUCH_PADS[4]={2,3,9,8};
 
 // for button inputs
 QueueHandle_t inputQueue;
+xTimerHandle repeatTimer;
 uint64_t lastkeytime=0;
+int keyrepeat=1;
 
+static int button_val[2]={1,1};
+static void repeatTimerCallback(xTimerHandle pxTimer) {
+    int v;
+    if(button_val[0]==0) {
+        v=0;
+        xQueueSendFromISR(inputQueue,&v,0);
+    }
+    if(button_val[1]==0) {
+        v=35;
+        xQueueSendFromISR(inputQueue,&v,0);
+    }
+    xTimerChangePeriod( repeatTimer, pdMS_TO_TICKS(200), 0);
+    xTimerStart( repeatTimer, 0 );
+
+}
 // interrupt handler for button presses on GPIO0 and GPIO35
 static void IRAM_ATTR gpio_isr_handler(void* arg)
 {
-    static int pval[2]={1,1};
     uint32_t gpio_num = (uint32_t) arg;
     int gpio_index=(gpio_num==35);
-    int val=(1-pval[gpio_index]);
+    int val=(1-button_val[gpio_index]);
 
     uint64_t time=esp_timer_get_time();
     uint64_t timesince=time-lastkeytime;
@@ -47,9 +62,16 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
     if(timesince>500) {
         int v=gpio_num+val*100;
         xQueueSendFromISR(inputQueue,&v,0);
+        if(val==0 && keyrepeat) {
+            xTimerChangePeriod( repeatTimer, pdMS_TO_TICKS(400), 0);
+            xTimerStart( repeatTimer, 0 );
+        }
+        if(val==1 && keyrepeat) {
+            xTimerStop( repeatTimer, 0 );
+        }
         lastkeytime=time;
     }
-    pval[gpio_index]=val;
+    button_val[gpio_index]=val;
     
     gpio_set_intr_type(gpio_num,val==0?GPIO_INTR_HIGH_LEVEL:GPIO_INTR_LOW_LEVEL);
 
@@ -152,6 +174,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
 void input_output_init() {
      // queue for button presses
     inputQueue = xQueueCreate(4,4);
+    repeatTimer = xTimerCreate("repeat", pdMS_TO_TICKS(300),pdFALSE,(void*)0, repeatTimerCallback);
         // interrupts for button presses
     gpio_set_direction(0, GPIO_MODE_INPUT);
     gpio_set_direction(35, GPIO_MODE_INPUT);
@@ -209,13 +232,11 @@ const int ROWS=4;
 const int COLS=12;
 const int DEL = 46;
 const int LSHIFT = 36;
-const int RSHIFT = 47;
+const int ENTER = 47;
 const char QWERTY_KEYS[2][48] = {"1234567890-=qwertyuiop[]asdfghjkl;'/\x80zxcvbnm,.\x7f\x81",
                         "!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:\"?\x80ZXCVBNM<>\x7f\x81"};
 
 void draw_keyboard(int topy, int highlight, int alt) {
-    
-
     char str[2] = {0};
     draw_rectangle(0, topy, display_width, display_height - topy,
                    rgbToColour(32, 32, 42));
@@ -234,12 +255,24 @@ void draw_keyboard(int topy, int highlight, int alt) {
         }
 }
 
-void get_string(char *title, char *string, int len) {
+void draw_controls(char *string, int sel) {
+    setFontColour(0,0,0);
+    char ch[2]={0};
+    for(int i=0;i<strlen(string); i++) {
+        int x=display_width-16*strlen(string)+i*16;
+        ch[0]=string[i];
+        if(i==sel)
+            draw_rectangle(x,2,16,16,rgbToColour(255,255,255));
+        print_xy(ch,x,2);
+    }
+}
 
+void get_string(char *title, char *string, int len) {
     set_orientation(LANDSCAPE);
-    int highlight=0;
+    int highlight=ROWS*COLS-1;
     int alt=0;
-    
+    int control=4;
+    char controls[]="\x88\x89\x86\x87\x81"; // right,left,down,up,enter
     int key;
     do {
         cls(0);
@@ -250,22 +283,37 @@ void get_string(char *title, char *string, int len) {
         setFontColour(255,255,255);
         setFont(FONT_UBUNTU16);
         print_xy(string,5,24);
-
         draw_keyboard(48,highlight,alt);
-        vec2 tp=get_touchpads();
-        highlight=(highlight+tp.x+tp.y*COLS+ROWS*COLS)%(ROWS*COLS);
-        
+        draw_controls(controls,control);
         flip_frame();
+        vec2 tp=get_touchpads();
         key=get_input();
-        if(key==LEFT_DOWN) {
-            if(highlight==DEL && strlen(string)>0)
-                string[strlen(string)-1]=0;
-            else if (highlight==LSHIFT || highlight==RSHIFT)
-                    alt=1-alt;
-                else if (strlen(string)<len-1)
-                    string[strlen(string)]=QWERTY_KEYS[alt][highlight];
+        if(key==LEFT_DOWN)
+            control=(control+1)%strlen(controls);
+        if(key==RIGHT_DOWN) {
+            switch(control) {
+                case 0: tp.x=1; break;
+                case 1: tp.x=-1; break;
+                case 2: tp.y=1; break;
+                case 3: tp.y=-1; break;
+                case 4:
+                switch(highlight) {
+                    case DEL:
+                        if(strlen(string)>0) string[strlen(string)-1]=0;
+                        break;
+                    case LSHIFT:
+                        alt=1-alt;
+                        break;
+                    case ENTER:
+                        return;
+                    default:
+                        if (strlen(string)<len-1)
+                            string[strlen(string)]=QWERTY_KEYS[alt][highlight];
+                }
+            }
         }
-    } while(key!=RIGHT_DOWN);
+        highlight=(highlight+tp.x+tp.y*COLS+ROWS*COLS)%(ROWS*COLS);
+    } while(true);
 }
 
 nvs_handle_t storage_open(nvs_open_mode_t mode) {
