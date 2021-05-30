@@ -6,13 +6,12 @@ void sensors_demo();
 void teapots_demo();
 void bubble_demo();
 void wifi_scan();
-void wifi_connect();
+void wifi_connect(int onlyconnect);
 void wifi_ap();
 void webserver();
 void web_client();
 void mqtt();
 void time_demo();
-void edit_wifi_settings(int i);
 
 // put your wifi ssid name and password in here
 #define WIFI_SSID "MUGuests"

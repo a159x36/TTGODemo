@@ -12,6 +12,7 @@ EventGroupHandle_t network_event_group;
 void init_eth();
 wifi_mode_type wifi_mode;
 #define CONNECTED_BIT 1
+#define AUTH_FAIL 2
 esp_netif_t *network_interface;
 extern char network_event[64];
 extern int bg_col;

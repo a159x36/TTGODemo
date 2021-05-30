@@ -230,9 +230,9 @@ vec2 get_touchpads() {
 
 const int ROWS=4;
 const int COLS=12;
-const int DEL = 46;
-const int LSHIFT = 36;
-const int ENTER = 47;
+const int DEL_KEY = 0x7f;
+const int SHIFT_KEY = 0x80;
+const int ENTER_KEY = 0x81;
 const char QWERTY_KEYS[2][48] = {"1234567890-=qwertyuiop[]asdfghjkl;'/\x80zxcvbnm,.\x7f\x81",
                         "!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:\"?\x80ZXCVBNM<>\x7f\x81"};
 
@@ -291,25 +291,21 @@ void get_string(char *title, char *string, int len) {
         if(key==LEFT_DOWN)
             control=(control+1)%strlen(controls);
         if(key==RIGHT_DOWN) {
+            int key_val=QWERTY_KEYS[alt][highlight];
             switch(control) {
                 case 0: tp.x=1; break;
                 case 1: tp.x=-1; break;
                 case 2: tp.y=1; break;
                 case 3: tp.y=-1; break;
                 case 4:
-                switch(highlight) {
-                    case DEL:
-                        if(strlen(string)>0) string[strlen(string)-1]=0;
-                        break;
-                    case LSHIFT:
-                        alt=1-alt;
-                        break;
-                    case ENTER:
-                        return;
-                    default:
-                        if (strlen(string)<len-1)
-                            string[strlen(string)]=QWERTY_KEYS[alt][highlight];
-                }
+                if(key_val==DEL_KEY)
+                    string[maxval((int)strlen(string)-1,0)]=0;
+                else if(key_val==DEL_KEY)
+                    alt=1-alt;
+                else if(key_val==ENTER_KEY)
+                    return;
+                else if (strlen(string)<len-1)
+                    string[strlen(string)]=key_val;
             }
         }
         highlight=(highlight+tp.x+tp.y*COLS+ROWS*COLS)%(ROWS*COLS);
@@ -359,4 +355,11 @@ void storage_write_string(char *name, char *val) {
     nvs_commit(handle);
     nvs_close(handle);
      printf("Wrote %s = %s\n",name,val);
+}
+
+void edit_stored_string(char *name, char *prompt) {
+    char val[64];
+    storage_read_string(name,"",val,sizeof(val));
+    get_string(prompt,val,sizeof(val));
+    storage_write_string(name,val);
 }

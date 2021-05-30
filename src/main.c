@@ -36,6 +36,30 @@
 
 int is_emulator=0;
 
+void wifi_settings_menu() {
+    int sel=0;
+    while(1) {
+        char *entries[]={"Choose AP","SSID","Username",
+                         "Password", "Back"};
+        sel=demo_menu("Wifi Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        switch(sel) {
+            case 0:
+                wifi_scan(1);
+                break;
+            case 1:
+                edit_stored_string("ssid","SSID");
+                break;
+            case 2:
+                edit_stored_string("username","Username");
+                break;
+            case 3:
+                edit_stored_string("password","Password");
+                break;
+            case 4:
+                return;
+        }
+    }
+}
 void wifi_menu() {
     int sel=0;
     while(1) {
@@ -44,16 +68,16 @@ void wifi_menu() {
         sel=demo_menu("Wifi Menu",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
-                wifi_scan();
+                wifi_scan(0);
                 break;
             case 1:
-                wifi_connect();
+                wifi_connect(0);
                 break;
             case 2:
                 wifi_ap();
                 break;
             case 3:
-                edit_wifi_settings(3);
+                wifi_settings_menu();
                 break;
             case 4:
                 return;

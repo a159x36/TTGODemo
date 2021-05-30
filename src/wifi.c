@@ -35,89 +35,8 @@
 wifi_mode_type wifi_mode=0;
 
 #define TAG "Wifi"
-
-
-//void client_task(void *pvParameters);
-//TaskHandle_t ctask=NULL;
-
  
 #define DEFAULT_SCAN_LIST_SIZE 24
-
-//int received=1;
-//int communicating=0;
-
-
-/*
-void send_receive(int sock) {
-    int err=fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
-    printf("Send_rec %d\n",err);
-    int gpio=1;
-    communicating=1;
-    while (communicating) {
-        char rx;
-        int len = recv(sock, &rx, 1, 0);
-        if(len!=-1)
-            printf("Received %d %d\n",len,rx);
-        if(len==-1 && errno!=EWOULDBLOCK) {
-            printf("Error: %d\n",errno);
-            break;
-        }
-        if(gpio_get_level(0)!=gpio) {
-            gpio=gpio_get_level(0);
-            len=send(sock,&gpio,1,0);
-            printf("Sent %d\n",gpio);
-        }
-        if(len==1)
-            received=rx;
-        vTaskDelay(1);
-    }
-    communicating=0;
-    printf("End Send Receive\n");
-}
-
-void server_task(void *pvParameters) {
-    struct sockaddr_in dest_addr_ip4;
-    dest_addr_ip4.sin_addr.s_addr = htonl(INADDR_ANY);
-    dest_addr_ip4.sin_family = AF_INET;
-    dest_addr_ip4.sin_port = htons(80);
-    int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    int opt = 1;
-    setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    bind(listen_sock, (struct sockaddr *)&dest_addr_ip4, sizeof(dest_addr_ip4));
-    listen(listen_sock, 1);
-    struct sockaddr_storage source_addr;
-    socklen_t addr_len = sizeof(source_addr);
-    while(1) {
-        int sock = accept(listen_sock, (struct sockaddr *)&source_addr, &addr_len);
-        if(sock<0) break;
-        send_receive(sock);
-        close(sock);
-    }
-    communicating=0;
-    close(listen_sock);
-    vTaskDelete(NULL);
-}
-
-void client_task(void *pvParameters) {
-    esp_netif_ip_info_t ip_info;
-    esp_netif_get_ip_info(demo_netif,&ip_info);
-    printf("Client %x %x\n",ip_info.gw.addr, ip_info.ip.addr);
-    struct sockaddr_in dest_addr_ip4;
-    dest_addr_ip4.sin_addr.s_addr = ip_info.gw.addr;//inet_addr("192.168.4.1");//ip_info.gw.addr;//("192.168.4.1");
-    dest_addr_ip4.sin_family = AF_INET;
-    dest_addr_ip4.sin_port = htons(80);
-    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    connect(sock, (struct sockaddr *)&dest_addr_ip4, sizeof(dest_addr_ip4));
-    send_receive(sock);
-    close(sock);
-    vTaskDelete(NULL);
-    ctask=NULL;
-}
-*/
-
-
-
-
 
 void init_wifi(wifi_mode_type mode) {
    
@@ -125,7 +44,12 @@ void init_wifi(wifi_mode_type mode) {
         init_eth();
         return;
     }
-    network_event_group = xEventGroupCreate();
+    if(wifi_mode==mode && network_interface!=NULL && 
+            (xEventGroupGetBits(network_event_group) & CONNECTED_BIT))
+        return;
+    if(network_event_group==NULL)
+        network_event_group = xEventGroupCreate();
+    xEventGroupClearBits(network_event_group, AUTH_FAIL | CONNECTED_BIT);
     wifi_mode=mode;
     if(network_interface!=NULL) {
         esp_event_loop_delete_default();
@@ -191,8 +115,6 @@ int ap_cmp(const void *ap1, const void *ap2) {
     return n;
 }
 
-
-
 void print_ap_info(wifi_ap_record_t *ap) {
     setFont(FONT_SMALL);
     char rssi_str[8];
@@ -228,15 +150,8 @@ void wifi_ap(void) {
     cls(0);
     init_wifi(ACCESS_POINT);
     wifi_sta_list_t wifi_stations;
-
-//    TaskHandle_t stask;
-//    xTaskCreate(server_task,"st",2048,NULL,1,&stask);
     do {
-        /*
-        if(received==1) 
-            cls(rgbToColour(128,0,0));
-        else */
-            cls(0);
+        cls(0);
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
         draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
@@ -245,43 +160,31 @@ void wifi_ap(void) {
         setFontColour(255,255,255);
         gprintf(network_event);
         setFontColour(0,255,0);
-//        if(communicating)
-//            gprintf("Communicating\n");
         setFont(FONT_SMALL);
         esp_wifi_ap_get_sta_list(&wifi_stations);
         for(int i=0;i<wifi_stations.num;i++) {
             uint8_t *mac=wifi_stations.sta[i].mac;
             gprintf("%02x:%02x:%02x:%02x:%02x:%02x %d\n",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5], wifi_stations.sta[i].rssi); 
         }
-//        if(wifi_stations.num==0) communicating=0;
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
-//    communicating=0;
-//    vTaskDelete(stask);
-//    esp_wifi_stop();
 }
 
 
-void wifi_connect(void) {
+void wifi_connect(int onlyconnect) {
     cls(0);
     network_event[0]=0;
     init_wifi(STATION);
-
     do {
-//        if(received==1) 
-//            cls(rgbToColour(128,0,0));
-//        else
-            cls(0);
+        cls(0);
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
         draw_rectangle(3,0,display_width,18,rgbToColour(255,200,0));
-        print_xy("Wifi Station\n",5,3);
+        print_xy("Connect\n",5,3);
         setFont(FONT_UBUNTU16);
         setFontColour(255,255,255);
         gprintf(network_event);
         setFontColour(0,255,0);
-//        if(communicating)
-//            gprintf("Communicating\n");
         if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
             wifi_ap_record_t ap;
             gprintf("Connected\n");
@@ -289,30 +192,21 @@ void wifi_connect(void) {
             esp_netif_get_ip_info(network_interface,&ip_info);
             gprintf(IPSTR"\n",IP2STR(&ip_info.ip));
             gprintf(IPSTR"\n",IP2STR(&ip_info.gw));
+            if(onlyconnect) {
+                flip_frame();
+                return;
+            }
             esp_wifi_sta_get_ap_info(&ap);
             print_ap_info(&ap);
-            
+        }
+        if(xEventGroupGetBits(network_event_group) & AUTH_FAIL) {
+            gprintf("Authentication Failed\n");
         }
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
-//    communicating=0;
-//    esp_wifi_stop();
 }
 
-void edit_stored_string(char *name, char *prompt) {
-    char val[64];
-    storage_read_string(name,"",val,sizeof(val));
-    get_string(prompt,val,sizeof(val));
-    storage_write_string(name,val);
-}
-
-void edit_wifi_settings(int i) {
-    if(i&2)
-        edit_stored_string("username","Username");
-    if(i&1)
-        edit_stored_string("password","Password");
-}
-void wifi_scan(void) {
+void wifi_scan(int setap) {
     cls(0);
     if(is_emulator) {
         setFont(FONT_UBUNTU16);
@@ -327,7 +221,6 @@ void wifi_scan(void) {
     uint16_t number = DEFAULT_SCAN_LIST_SIZE;
     static wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
     static wifi_ap_record_t ap_list[DEFAULT_SCAN_LIST_SIZE];
-   // uint16_t ap_count = 0;
     memset(ap_info, 0, sizeof(ap_info));
     setFont(FONT_UBUNTU16);
     setFontColour(255,255,255);
@@ -376,18 +269,11 @@ void wifi_scan(void) {
             highlight= (highlight+1)%ap_number;
         }
         if(c==RIGHT_DOWN) {
-            uint8_t *ap_name=ap_list[highlight].ssid;
-            storage_write_string("ssid",(char *)ap_name);
-            wifi_auth_mode_t auth=ap_list[highlight].authmode;
-            printf("Wifi Authmode %d\n",auth);
-            if(auth==WIFI_AUTH_WPA2_ENTERPRISE) {
-                edit_wifi_settings(3);
-            }
-            if(auth==WIFI_AUTH_WPA2_PSK || auth==WIFI_AUTH_WPA_PSK || auth==WIFI_AUTH_WEP) {
-                edit_wifi_settings(1);
+            if(setap) {
+                uint8_t *ap_name=ap_list[highlight].ssid;
+                storage_write_string("ssid",(char *)ap_name);
             }
             return;
         }
     } while(true);
-    esp_wifi_stop();
 }

@@ -45,21 +45,36 @@ void event_handler(void *arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data) {
     ESP_LOGI(tag, "WiFi event: %s %d\n",event_base,event_id);
     snprintf(network_event,64,"%s %d\n",event_base,event_id);
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
-        if(wifi_mode==STATION)
-            esp_wifi_connect();
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        esp_wifi_connect();
-        xEventGroupClearBits(network_event_group, CONNECTED_BIT);
-    } else if (event_base == IP_EVENT && ((event_id == IP_EVENT_STA_GOT_IP) || 
-    (event_id == IP_EVENT_AP_STAIPASSIGNED) || (event_id == IP_EVENT_ETH_GOT_IP))) {
-        xEventGroupSetBits(network_event_group, CONNECTED_BIT);
-//        if(wifi_mode==STATION && event_id == IP_EVENT_STA_GOT_IP) {
-//            xTaskCreate(client_task,"ct",2048,NULL,1,&ctask);
-//        }
-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_SCAN_DONE) {
-        esp_wifi_scan_start(NULL,false);
-    } else if (!strcmp(event_base,"MQTT_EVENTS")) {
+    if (event_base == WIFI_EVENT) {
+        system_event_sta_disconnected_t* disconnect_data;
+        switch (event_id) {
+        case WIFI_EVENT_STA_START:
+            xEventGroupClearBits(network_event_group, AUTH_FAIL | CONNECTED_BIT);
+            if (wifi_mode == STATION)
+                esp_wifi_connect();
+            break;
+        case WIFI_EVENT_STA_DISCONNECTED:
+            disconnect_data=event_data;
+            ESP_LOGI(tag, "WiFi DIsconnect: %d",disconnect_data->reason);
+            xEventGroupClearBits(network_event_group, CONNECTED_BIT);
+            if(disconnect_data->reason==WIFI_REASON_AUTH_FAIL ||
+                disconnect_data->reason==WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT)
+                xEventGroupSetBits(network_event_group, AUTH_FAIL);
+            else        
+                esp_wifi_connect();
+            break;
+        case WIFI_EVENT_SCAN_DONE:
+            esp_wifi_scan_start(NULL, false);
+            break;
+        }
+    }
+    if (event_base == IP_EVENT) {
+        if ((event_id == IP_EVENT_STA_GOT_IP) ||
+            (event_id == IP_EVENT_AP_STAIPASSIGNED) || (event_id == IP_EVENT_ETH_GOT_IP)) {
+            xEventGroupSetBits(network_event_group, CONNECTED_BIT);
+        }
+    }
+    if (!strcmp(event_base,"MQTT_EVENTS")) {
         esp_mqtt_event_handle_t event = event_data;
         if(event_id==MQTT_EVENT_CONNECTED) {
             esp_mqtt_client_handle_t client = event->client;
@@ -159,27 +174,35 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
     ESP_LOGI(TAG, "http event %d",(evt->event_id));
     if(evt->event_id==HTTP_EVENT_ON_DATA) {
-        for(int i=0;i<evt->data_len;i++)
-            xQueueSend(imageQueue, (char *)(evt->data), portMAX_DELAY);
+        char *data=(char *)(evt->data);
+        for(int i=0;i<evt->data_len;i++) {
+            int s=data[i];
+            xQueueSend(imageQueue, &s, portMAX_DELAY);
+        }
     }
-//    switch(evt->event_id) {
-//    }
+    if(evt->event_id==HTTP_EVENT_ON_FINISH) {
+        int s=-1;
+        xQueueSend(imageQueue, &s, portMAX_DELAY);
+    }
     return ESP_OK;
 }
 
 static uint32_t jpg_read(JDEC *decoder, uint8_t *buf, uint32_t len) {
-    ESP_LOGI(TAG, "jpeg read %d",len);
     for(int i=0;i<len;i++) {
-        xQueueReceive(imageQueue, buf++, portMAX_DELAY);
+        int data;
+        xQueueReceive(imageQueue, &data, portMAX_DELAY);
+        if(data<0)
+            return i;
+        if(buf)
+            *buf++=data;
     }
     return len;
 }
 
 static uint32_t jpg_write(JDEC *decoder, void *bitmap, JRECT *rect) {
-    ESP_LOGI(TAG, "jpeg write");
     char *rgb=(char *)bitmap;
-    for(int y=rect->top;y<rect->bottom; y++)
-        for(int x=rect->left;x<rect->right; x++) {
+    for(int y=rect->top;y<=rect->bottom; y++)
+        for(int x=rect->left;x<=rect->right; x++) {
             int r=*rgb++,g=*rgb++,b=*rgb++;
             draw_pixel(x,y,rgbToColour(r,g,b));
         }
@@ -187,11 +210,9 @@ static uint32_t jpg_write(JDEC *decoder, void *bitmap, JRECT *rect) {
 }
 
 void web_task(void *pvParameters) {
-   // static char local_response_buffer[256] = {0};
     esp_http_client_config_t config = {
-        .url = "http://www.trafficnz.info/camera/10.jpg",
+        .url = "http://www.trafficnz.info/camera/20.jpg",
         .event_handler = _http_event_handler,
-   //     .user_data = local_response_buffer,        // Pass address of local buffer to get response
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
@@ -199,33 +220,37 @@ void web_task(void *pvParameters) {
         ESP_LOGI(TAG, "Status = %d, content_length = %d",
            esp_http_client_get_status_code(client),
            esp_http_client_get_content_length(client));
+    } else {
+        int s=-2;
+        xQueueSend(imageQueue, &s, portMAX_DELAY);
     }
+    esp_http_client_close(client);
+    esp_http_client_cleanup(client);
     vTaskDelete(NULL);
 }
 
 void web_client(void) {
-    init_wifi(STATION);
-    if(imageQueue==NULL)
-        imageQueue=xQueueCreate( 256, 1);
-    while(!(xEventGroupGetBits(network_event_group) & CONNECTED_BIT));
+    wifi_connect(1);
+    if(imageQueue==NULL) imageQueue=xQueueCreate( 512, 4);
     TaskHandle_t wtask;
-    xTaskCreate(web_task,"wt",2048,NULL,1,&wtask);
-    ESP_LOGI(TAG, "Connected");
-    cls(bg_col);
+    cls(0);
+    gprintf("Connected");
+    flip_frame();
     JDEC decoder;
     char *work=malloc(3100);
-    ESP_LOGI(TAG, "Perform");
-    int r = jd_prepare(&decoder, jpg_read, work, 3100, NULL);
-    ESP_LOGI(TAG, "Prepare");
+    xTaskCreate(web_task,"wt",4096,NULL,1,&wtask);
+    int r = jd_prepare(&decoder, jpg_read, work, 3100, NULL);    
     cls(bg_col);
-    r = jd_decomp(&decoder, jpg_write, 0);
+    if (r == JDR_OK)
+        r = jd_decomp(&decoder, jpg_write, 1);
+    free(work);
     flip_frame();
     while(get_input()!=RIGHT_DOWN);
 }
 
 
 void mqtt() {
-    init_wifi(STATION);
+    wifi_connect(1);
     esp_mqtt_client_config_t mqtt_cfg = { .uri = "mqtt://mail.marginz.co.nz" };
     esp_mqtt_client_handle_t client = NULL;
     char c;
@@ -264,7 +289,7 @@ void mqtt() {
 }
 
 void time_demo() {
-    init_wifi(STATION);
+    wifi_connect(1);
     int sntp_status=0;
     do {
         cls(0);
