@@ -62,6 +62,15 @@ void wifi_settings_menu() {
 }
 void wifi_menu() {
     int sel=0;
+    if(is_emulator) {
+        setFont(FONT_DEJAVU24);
+        do {
+            cls(0);
+            print_xy("Wifi Not Available\nOn the Emulator",5,3);
+            flip_frame();
+        } while(get_input()!=RIGHT_DOWN);
+        return;
+    }
     while(1) {
         char *entries[]={"Scan","Connect","Access Point",
                          "Settings", "Back"};

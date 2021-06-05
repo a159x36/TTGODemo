@@ -276,7 +276,7 @@ void get_string(char *title, char *string, int len) {
     int key;
     do {
         cls(0);
-        draw_rectangle(3,0,display_width,20,rgbToColour(255,200,0));
+        draw_rectangle(3,0,display_width,20,rgbToColour(220,220,0));
         setFontColour(0,0,0);
         setFont(FONT_DEJAVU18);
         print_xy(title,5,3);

@@ -39,13 +39,24 @@ int bg_col=0;
 esp_netif_t *network_interface = NULL;
 esp_eth_handle_t eth_handle = NULL;
 void *glue = NULL;
-
+void set_event_message(const char *s) {
+    snprintf(network_event,sizeof(network_event),"%s\n",s);
+}
 
 void event_handler(void *arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data) {
-    ESP_LOGI(tag, "WiFi event: %s %d\n",event_base,event_id);
-    snprintf(network_event,64,"%s %d\n",event_base,event_id);
+    const char* wifi_messages[]={
+        "WIFI_READY","SCAN_DONE","STA_START","STA_STOP","STA_CONNECTED",
+        "STA_DISCONNECTED","STA_AUTHMODE_CHANGE","WPS_ER_SUCCESS","STA_WPS_ER_FAILED",
+        "STA_WPS_ER_TIMEOUT","STA_WPS_ER_PIN","STA_WPS_ER_PBC_OVERLAP","AP_START",
+        "AP_STOP","AP_STACONNECTED","AP_STADISCONNECTED","AP_PROBEREQRECVED"}; 
+    const char* ip_messages[]={
+         "STA_GOT_IP","STA_LOST_IP","AP_STAIPASSIGNED","GOT_IP6","ETH_GOT_IP","PPP_GOT_IP","PPP_LOST_IP"};
+    const char* mqtt_messages[]={
+        "MQTT_ERROR","MQTT_CONNECTED","MQTT_DISCONNECTED","MQTT_SUBSCRIBED",
+        "MQTT_UNSUBSCRIBED","MQTT_PUBLISHED","MQTT_DATA","MQTT_BEFORE_CONNECT"};
     if (event_base == WIFI_EVENT) {
+        set_event_message(wifi_messages[event_id%WIFI_EVENT_MAX]);
         system_event_sta_disconnected_t* disconnect_data;
         switch (event_id) {
         case WIFI_EVENT_STA_START:
@@ -55,7 +66,7 @@ void event_handler(void *arg, esp_event_base_t event_base,
             break;
         case WIFI_EVENT_STA_DISCONNECTED:
             disconnect_data=event_data;
-            ESP_LOGI(tag, "WiFi DIsconnect: %d",disconnect_data->reason);
+            ESP_LOGI(tag, "WiFi Disconnect: %d",disconnect_data->reason);
             xEventGroupClearBits(network_event_group, CONNECTED_BIT);
             if(disconnect_data->reason==WIFI_REASON_AUTH_FAIL ||
                 disconnect_data->reason==WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT)
@@ -69,16 +80,17 @@ void event_handler(void *arg, esp_event_base_t event_base,
         }
     }
     if (event_base == IP_EVENT) {
+        set_event_message(ip_messages[event_id%sizeof(ip_messages)]);
         if ((event_id == IP_EVENT_STA_GOT_IP) ||
             (event_id == IP_EVENT_AP_STAIPASSIGNED) || (event_id == IP_EVENT_ETH_GOT_IP)) {
             xEventGroupSetBits(network_event_group, CONNECTED_BIT);
         }
     }
     if (!strcmp(event_base,"MQTT_EVENTS")) {
+        set_event_message(mqtt_messages[event_id%sizeof(mqtt_messages)]);
         esp_mqtt_event_handle_t event = event_data;
         if(event_id==MQTT_EVENT_CONNECTED) {
             esp_mqtt_client_handle_t client = event->client;
-            ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
             esp_netif_ip_info_t ip_info;
             esp_netif_get_ip_info(network_interface,&ip_info);
             char buf[64];
@@ -86,11 +98,11 @@ void event_handler(void *arg, esp_event_base_t event_base,
             esp_mqtt_client_publish(client, "/topic/a159236", buf, 0, 1, 0);
             esp_mqtt_client_subscribe(client, "/topic/a159236", 0);
         } else if(event_id==MQTT_EVENT_DATA) {    
-            char message[event->data_len+1];
-            snprintf(message,event->data_len+1,"%s",event->data);
-            snprintf(network_event,64,"%s %d\n%s\n",event_base,event_id,message);
+//            char message[event->data_len+2];
+//            snprintf(message,event->data_len+2,"%s\n",event->data);
+            snprintf(network_event,sizeof(network_event),"MQTT_DATA\n%s\n",event->data);
             int r,g,b;
-            if(sscanf(message,"%d,%d,%d",&r,&g,&b)==3)
+            if(sscanf(event->data,"%d,%d,%d",&r,&g,&b)==3)
                 bg_col=rgbToColour(r,g,b);
         }
     }
@@ -170,7 +182,7 @@ void webserver(void) {
 
 QueueHandle_t imageQueue=NULL;
 
-esp_err_t _http_event_handler(esp_http_client_event_t *evt)
+esp_err_t http_event_handler(esp_http_client_event_t *evt)
 {
     ESP_LOGI(TAG, "http event %d",(evt->event_id));
     if(evt->event_id==HTTP_EVENT_ON_DATA) {
@@ -212,7 +224,7 @@ static uint32_t jpg_write(JDEC *decoder, void *bitmap, JRECT *rect) {
 void web_task(void *pvParameters) {
     esp_http_client_config_t config = {
         .url = "http://www.trafficnz.info/camera/20.jpg",
-        .event_handler = _http_event_handler,
+        .event_handler = http_event_handler,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
@@ -258,7 +270,7 @@ void mqtt() {
         cls(bg_col);
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
-        draw_rectangle(3,0,display_width,18,rgbToColour(255,200,0));
+        draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
         print_xy("MQTT\n",5,3);
         setFont(FONT_UBUNTU16);
         setFontColour(255,255,255);
@@ -295,7 +307,7 @@ void time_demo() {
         cls(0);
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
-        draw_rectangle(3,0,display_width,18,rgbToColour(255,200,0));
+        draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
         print_xy("Time\n",5,3);
         setFont(FONT_UBUNTU16);
         setFontColour(255,255,255);
@@ -321,7 +333,6 @@ void time_demo() {
         }
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
-    //sntp_stop();
-    //esp_wifi_stop();
+    sntp_stop();
 }
 

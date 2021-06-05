@@ -179,7 +179,7 @@ void wifi_connect(int onlyconnect) {
         cls(0);
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
-        draw_rectangle(3,0,display_width,18,rgbToColour(255,200,0));
+        draw_rectangle(3,0,display_width,20,rgbToColour(220,220,0));
         print_xy("Connect\n",5,3);
         setFont(FONT_UBUNTU16);
         setFontColour(255,255,255);
@@ -208,15 +208,6 @@ void wifi_connect(int onlyconnect) {
 
 void wifi_scan(int setap) {
     cls(0);
-    if(is_emulator) {
-        setFont(FONT_UBUNTU16);
-        do {
-            cls(0);
-            print_xy("Wifi Not Available",5,3);
-            flip_frame();
-        } while(get_input()!=RIGHT_DOWN);
-        return;
-    }
     init_wifi(SCAN);
     uint16_t number = DEFAULT_SCAN_LIST_SIZE;
     static wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
@@ -251,7 +242,7 @@ void wifi_scan(int setap) {
         qsort(ap_list,ap_number,sizeof(wifi_ap_record_t),ap_cmp);
         setFont(FONT_UBUNTU16);
         setFontColour(0,0,66);
-        draw_rectangle(3,0,display_width,18,rgbToColour(255,200,0));
+        draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
         print_xy("Access Points\n",5,3);
         setFont(FONT_SMALL);
         for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_number); i++) {
