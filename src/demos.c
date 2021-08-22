@@ -1,4 +1,3 @@
-
 #include <esp_system.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
@@ -86,8 +85,8 @@ typedef struct pos {
     int colour;
 } pos;
 
-const int NBOIDS=200;
-const int NEIGH=200;
+const int NBOIDS=300;
+const int NEIGH=15;
 const float MAXACC=6.0f;
 const float MAXVEL=6.0f;
 const float MINVEL=1.0f;
@@ -96,12 +95,13 @@ const float FALIGN=0.05f;
 const float FSEPARATION=0.5f;
 
 typedef struct boid {
-    vec2f pos;
-    vec2f vel;
-    vec2f avoid;
-    vec2f nvel;
-    vec2f npos;
-    int neighb;
+    vec2f pos;      // boid position
+    vec2f vel;      // boid velocity
+    vec2f avoid;    // vector to avoid neighbours
+    vec2f nvel;     // neighbour sum of velocities
+    vec2f npos;     // neighbour sum of positions
+    int neighb;     // number of neighbours
+    int flock;
 } boid;
 
 vec2f limit(vec2f v,float min,float max) {
@@ -121,33 +121,46 @@ void boids_demo() {
     boid *boids =malloc(sizeof(boid)*NBOIDS);
     for(int i=0;i<NBOIDS;i++) {
         float angle=(rand()%31415)/5000.0f;
-        boids[i].pos=(vec2f){rand()%display_width,rand()%display_height};
+        boids[i].pos=(vec2f){rand()%display_width/2+display_width/4,
+                        rand()%display_height/2+display_height/4};
         boids[i].vel=(vec2f){1*cos(angle),1*sin(angle)};
+        boids[i].flock=rand()%3;
     }
     while(1) {
         cls(0);
         for(int i=0;i<NBOIDS;i++) {
             boid b=boids[i];
-            draw_line(b.pos.x,b.pos.y,b.pos.x+b.vel.x,b.pos.y+b.vel.y,-1);
+            int col=-1;
+            if(boids[i].flock==0) col=-1;
+            if(boids[i].flock==1) col=rgbToColour(0,255,0);
+            if(boids[i].flock==2) col=rgbToColour(255,0,0);
+            draw_pixel(b.pos.x,b.pos.y,col);
+            draw_pixel((b.pos.x+b.vel.x),(b.pos.y+b.vel.y),col);
+            /*
+            draw_line((uint16_t)b.pos.x,(uint16_t)b.pos.y,
+            (uint16_t)(b.pos.x+b.vel.x),(uint16_t)(b.pos.y+b.vel.y),col);
+            */
             boids[i].neighb=0;
             boids[i].avoid=(vec2f){0,0};
             boids[i].nvel=(vec2f){0,0};
             boids[i].npos=(vec2f){0,0};
+            vec2f bpos=b.pos;
             for(int j=0;j<i;j++) {
-                boid b1=boids[j];
-                vec2f dif=sub2d(b.pos,b1.pos);
+                vec2f dif=sub2d(bpos,boids[j].pos);
                 float d2=mag2d(dif);
-                if(d2<NEIGH) {
+                if(d2<NEIGH*NEIGH) {
                     float mag=Q_rsqrt(d2);
                     dif=mul2d(mag*mag,dif);
                     boids[j].avoid=sub2d(boids[j].avoid,dif);
                     boids[i].avoid=add2d(boids[i].avoid,dif);
-                    boids[i].nvel=add2d(boids[i].nvel,boids[j].vel);
-                    boids[j].nvel=add2d(boids[j].nvel,boids[i].vel);
-                    boids[i].npos=add2d(boids[i].npos,boids[j].pos);
-                    boids[j].npos=add2d(boids[j].npos,boids[i].pos);
-                    boids[i].neighb++;
-                    boids[j].neighb++;
+                    if(boids[i].flock==boids[j].flock) {
+                        boids[i].nvel=add2d(boids[i].nvel,boids[j].vel);
+                        boids[j].nvel=add2d(boids[j].nvel,boids[i].vel);
+                        boids[i].npos=add2d(boids[i].npos,boids[j].pos);
+                        boids[j].npos=add2d(boids[j].npos,boids[i].pos);
+                        boids[i].neighb++;
+                        boids[j].neighb++;
+                    }
                 }
             }
         }
@@ -184,7 +197,10 @@ void boids_demo() {
         flip_frame();
         showfps();
         key_type key=get_input();
-        if(key==LEFT_DOWN) return;
+        if(key==LEFT_DOWN) {
+            free(boids);
+            return;
+        }
     }
 }
 
