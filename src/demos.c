@@ -38,10 +38,8 @@ void showfps() {
     }
     last_time=current_time;
 }
-void boid_demo(void);
 // Simple game of life demo
 void life_demo() {
-    boid_demo();
     cls(0);
     for(int i=0;i<(display_width*display_height)/2;i++) {
         int x=rand()%(display_width);
@@ -90,11 +88,12 @@ typedef struct pos {
 
 const int NBOIDS=200;
 const int NEIGH=200;
-const float MAXACC=2.0f;
-const float MAXVEL=2.0f;
-const float FCOHESION=0.1f;
-const float FALIGN=0.1f;
-const float FSEPARATION=1.0f;
+const float MAXACC=6.0f;
+const float MAXVEL=6.0f;
+const float MINVEL=1.0f;
+const float FCOHESION=0.05f;
+const float FALIGN=0.05f;
+const float FSEPARATION=0.5f;
 
 typedef struct boid {
     vec2f pos;
@@ -105,16 +104,20 @@ typedef struct boid {
     int neighb;
 } boid;
 
-vec2f limit(vec2f v,float max) {
+vec2f limit(vec2f v,float min,float max) {
     float d2=mag2d(v);
     if(d2>max*max) {
         float mag=Q_rsqrt(d2)*max;
         return (vec2f){v.x*mag, v.y*mag};
     }
+    if(d2<min*min) {
+        float mag=Q_rsqrt(d2)*min;
+        return (vec2f){v.x*mag, v.y*mag};
+    }
     return v;
 }
 
-void boid_demo () {
+void boids_demo() {
     boid *boids =malloc(sizeof(boid)*NBOIDS);
     for(int i=0;i<NBOIDS;i++) {
         float angle=(rand()%31415)/5000.0f;
@@ -130,7 +133,6 @@ void boid_demo () {
             boids[i].avoid=(vec2f){0,0};
             boids[i].nvel=(vec2f){0,0};
             boids[i].npos=(vec2f){0,0};
-
             for(int j=0;j<i;j++) {
                 boid b1=boids[j];
                 vec2f dif=sub2d(b.pos,b1.pos);
@@ -155,42 +157,34 @@ void boid_demo () {
                 float ineighb=1.0f/boids[i].neighb;
                 vec2f avoid=boids[i].avoid;
                 avoid=mul2d(FSEPARATION,avoid);
-                avoid=limit(avoid,MAXACC);
+                avoid=limit(avoid,0,MAXACC);
                 vec2f align=mul2d(ineighb,boids[i].nvel);
                 align=mul2d(FALIGN,sub2d(align,boids[i].vel));
-                align=limit(align,MAXACC);
+                align=limit(align,0,MAXACC);
                 vec2f cohesion=mul2d(ineighb,boids[i].npos);
                 cohesion=sub2d(cohesion,boids[i].pos);
                 cohesion=mul2d(FCOHESION,cohesion);
-                cohesion=limit(cohesion,MAXACC);
+                cohesion=limit(cohesion,0,MAXACC);
                 acc=avoid;
                 acc=add2d(acc,align);
                 acc=add2d(acc,cohesion);
             }
             boids[i].vel=add2d(acc,boids[i].vel);
-          //  boids[i].vel=limit(boids[i].vel,4);
-            
-            float mag=mag2d(boids[i].vel);
-            if(mag>MAXVEL) {
-                boids[i].vel=mul2d(MAXVEL,normalise2d(boids[i].vel));
-//                mag=Q_rsqrt(mag)*1;
-//                boids[i].vel=mul2d(mag,boids[i].vel);
-            }
-            
+            boids[i].vel=limit(boids[i].vel,MINVEL,MAXVEL);
             boids[i].pos=add2d(boids[i].pos,boids[i].vel);
-            if(boids[i].pos.x<0.0f || boids[i].pos.x>display_width) {
+            if(boids[i].pos.x<0 || boids[i].pos.x>display_width) {
                 boids[i].vel.x=-boids[i].vel.x;
                 boids[i].pos.x+=boids[i].vel.x;
             }
-            if(boids[i].pos.y<0.0f || boids[i].pos.y>display_height) {
+            if(boids[i].pos.y<0 || boids[i].pos.y>display_height) {
                 boids[i].vel.y=-boids[i].vel.y;
                 boids[i].pos.y+=boids[i].vel.y;
             }
-//            if(boids[i].pos.x>(float)display_width) boids[i].pos.x-=(float)display_width;
-//            if(boids[i].pos.y>(float)display_height) boids[i].pos.y-=(float)display_height;
         }
-//        printf("b0: %f %f %f %f\n",boids[0].pos.x,boids[0].pos.y,boids[0].vel.x,boids[0].vel.y);
         flip_frame();
+        showfps();
+        key_type key=get_input();
+        if(key==LEFT_DOWN) return;
     }
 }
 
