@@ -43,11 +43,15 @@ static inline vec3f cross3d(vec3f p0, vec3f p1) {
                     (p0.z)*(p1.x)-(p0.x)*(p1.z),
                     (p0.x)*(p1.y)-(p0.y)*(p1.x)};
 }
+// approximate reciprocal because fp division is very slow
 static inline float recip(float number) {
     union {float f; uint32_t i; } conv  = { .f = number };
-    conv.i  = 0xbe6eb3be - ( conv.i >> 1 );
-    return conv.f*conv.f;
+    conv.i  = 0x7EF477D5 - conv.i;
+    conv.f *= 2.0f-number*conv.f;
+//    conv.f *= 2.0f-number*conv.f;
+    return conv.f;
 }
+// fast inverse square root 
 static inline float Q_rsqrt( float number )
 {	
 	const float x2 = number * 0.5F;

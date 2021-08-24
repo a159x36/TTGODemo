@@ -85,9 +85,10 @@ typedef struct pos {
     int colour;
 } pos;
 
-const int NBOIDS=300;
-const int NEIGH=15;
-const float MAXACC=6.0f;
+const int NBOIDS=400;
+const int NEIGH=20;
+const int NFLOCKS=2;
+const float MAXACC=0.7f;
 const float MAXVEL=6.0f;
 const float MINVEL=1.0f;
 const float FCOHESION=0.05f;
@@ -100,16 +101,20 @@ typedef struct boid {
     vec2f avoid;    // vector to avoid neighbours
     vec2f nvel;     // neighbour sum of velocities
     vec2f npos;     // neighbour sum of positions
-    int neighb;     // number of neighbours
-    int flock;
+    uint16_t neighb;     // number of neighbours
+    uint8_t flock;
 } boid;
 
-vec2f limit(vec2f v,float min,float max) {
+static inline vec2f limitmax(vec2f v,float max) {
     float d2=mag2d(v);
     if(d2>max*max) {
         float mag=Q_rsqrt(d2)*max;
         return (vec2f){v.x*mag, v.y*mag};
     }
+    return v;
+}
+static inline vec2f limitmin(vec2f v,float min) {
+    float d2=mag2d(v);
     if(d2<min*min) {
         float mag=Q_rsqrt(d2)*min;
         return (vec2f){v.x*mag, v.y*mag};
@@ -117,49 +122,54 @@ vec2f limit(vec2f v,float min,float max) {
     return v;
 }
 
+
 void boids_demo() {
     boid *boids =malloc(sizeof(boid)*NBOIDS);
+    uint16_t cols[NFLOCKS];
+    for(int i=0;i<NFLOCKS;i++) {
+        cols[i]=rgbToColour(((i+1)&1)*255,((i+1)&2)*127,((i+1)&4)*63);
+    }
     for(int i=0;i<NBOIDS;i++) {
         float angle=(rand()%31415)/5000.0f;
         boids[i].pos=(vec2f){rand()%display_width/2+display_width/4,
                         rand()%display_height/2+display_height/4};
-        boids[i].vel=(vec2f){1*cos(angle),1*sin(angle)};
-        boids[i].flock=rand()%3;
+        boids[i].vel=(vec2f){2.0f*cos(angle),2.0f*sin(angle)};
+        boids[i].flock=rand()%NFLOCKS;
     }
+/*
+    for(float f=0.1;f<100;f+=0.1) {
+        printf("%f %f %f\n",f,1.0f/f,recip(f));
+    }
+    */
     while(1) {
         cls(0);
         for(int i=0;i<NBOIDS;i++) {
-            boid b=boids[i];
-            int col=-1;
-            if(boids[i].flock==0) col=-1;
-            if(boids[i].flock==1) col=rgbToColour(0,255,0);
-            if(boids[i].flock==2) col=rgbToColour(255,0,0);
-            draw_pixel(b.pos.x,b.pos.y,col);
-            draw_pixel((b.pos.x+b.vel.x),(b.pos.y+b.vel.y),col);
-            /*
-            draw_line((uint16_t)b.pos.x,(uint16_t)b.pos.y,
-            (uint16_t)(b.pos.x+b.vel.x),(uint16_t)(b.pos.y+b.vel.y),col);
-            */
-            boids[i].neighb=0;
-            boids[i].avoid=(vec2f){0,0};
-            boids[i].nvel=(vec2f){0,0};
-            boids[i].npos=(vec2f){0,0};
-            vec2f bpos=b.pos;
-            for(int j=0;j<i;j++) {
-                vec2f dif=sub2d(bpos,boids[j].pos);
+            boid *bp=boids+i;
+            boid *b1p=boids;
+            vec2f bpos=bp->pos;
+            uint16_t col=cols[bp->flock];
+            draw_line(bpos.x,bpos.y,bpos.x+bp->vel.x*4.0,bpos.y+bp->vel.y*4.0,col);
+            bp->neighb=0;
+            bp->avoid=(vec2f){0,0};
+            bp->nvel=(vec2f){0,0};
+            bp->npos=(vec2f){0,0};
+            float N2=(float)(NEIGH*NEIGH);
+            for(int j=0;j<i;j++,b1p++) {
+                vec2f dif=sub2d(bpos,b1p->pos);
                 float d2=mag2d(dif);
-                if(d2<NEIGH*NEIGH) {
-                    float mag=Q_rsqrt(d2);
-                    dif=mul2d(mag*mag,dif);
-                    boids[j].avoid=sub2d(boids[j].avoid,dif);
-                    boids[i].avoid=add2d(boids[i].avoid,dif);
-                    if(boids[i].flock==boids[j].flock) {
-                        boids[i].nvel=add2d(boids[i].nvel,boids[j].vel);
-                        boids[j].nvel=add2d(boids[j].nvel,boids[i].vel);
-                        boids[i].npos=add2d(boids[i].npos,boids[j].pos);
-                        boids[j].npos=add2d(boids[j].npos,boids[i].pos);
-                        boids[i].neighb++;
-                        boids[j].neighb++;
+                if(d2<N2) {
+                    float mag=recip(d2);
+                    if(d2==0) mag=1;
+                    dif=mul2d(mag,dif);
+                    b1p->avoid=sub2d(b1p->avoid,dif);
+                    bp->avoid=add2d(bp->avoid,dif);
+                    if(bp->flock==b1p->flock) {
+                        bp->nvel=add2d(bp->nvel,b1p->vel);
+                        b1p->nvel=add2d(b1p->nvel,bp->vel);
+                        bp->npos=add2d(bp->npos,b1p->pos);
+                        b1p->npos=add2d(b1p->npos,bp->pos);
+                        bp->neighb++;
+                        b1p->neighb++;
                     }
                 }
             }
@@ -167,23 +177,24 @@ void boids_demo() {
         for(int i=0;i<NBOIDS;i++) {
             vec2f acc=(vec2f){0,0};
             if(boids[i].neighb!=0) {
-                float ineighb=1.0f/boids[i].neighb;
+                float ineighb=recip(boids[i].neighb);
                 vec2f avoid=boids[i].avoid;
                 avoid=mul2d(FSEPARATION,avoid);
-                avoid=limit(avoid,0,MAXACC);
+                avoid=limitmax(avoid,MAXACC);
                 vec2f align=mul2d(ineighb,boids[i].nvel);
                 align=mul2d(FALIGN,sub2d(align,boids[i].vel));
-                align=limit(align,0,MAXACC);
+                align=limitmax(align,MAXACC);
                 vec2f cohesion=mul2d(ineighb,boids[i].npos);
                 cohesion=sub2d(cohesion,boids[i].pos);
                 cohesion=mul2d(FCOHESION,cohesion);
-                cohesion=limit(cohesion,0,MAXACC);
+                cohesion=limitmax(cohesion,MAXACC);
                 acc=avoid;
                 acc=add2d(acc,align);
                 acc=add2d(acc,cohesion);
             }
             boids[i].vel=add2d(acc,boids[i].vel);
-            boids[i].vel=limit(boids[i].vel,MINVEL,MAXVEL);
+            boids[i].vel=limitmax(boids[i].vel,MAXVEL);
+            boids[i].vel=limitmin(boids[i].vel,MINVEL);
             boids[i].pos=add2d(boids[i].pos,boids[i].vel);
             if(boids[i].pos.x<0 || boids[i].pos.x>display_width) {
                 boids[i].vel.x=-boids[i].vel.x;
