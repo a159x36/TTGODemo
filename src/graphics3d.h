@@ -33,6 +33,9 @@ static inline float mag2d(vec2f p) {
     return (p.x*p.x+p.y*p.y);
 }
 
+static inline float dot2d(vec2f p0, vec2f p1) {
+    return (p0.x*p1.x+p0.y*p1.y);
+}
 
 static inline vec3f mid3d(vec3f const p0, vec3f const p1) {
     return (vec3f){(p0.x+p1.x)*0.5f, (p0.y+p1.y)*0.5f, (p0.z+p1.z)*0.5f};
@@ -48,7 +51,9 @@ static inline float recip(float number) {
     union {float f; uint32_t i; } conv  = { .f = number };
     conv.i  = 0x7EF477D5 - conv.i;
     conv.f *= 2.0f-number*conv.f;
-//    conv.f *= 2.0f-number*conv.f;
+ //   conv.f *= 2.0f-number*conv.f;
+    float h=1.0f-number*conv.f;
+    conv.f *= (1.0f+h*(1.0f+h));
     return conv.f;
 }
 // fast inverse square root 
@@ -69,8 +74,8 @@ static inline vec3f normalise(vec3f p) {
 
 static inline vec2f normalise2d(vec2f p) {
     float d2=p.x*p.x+p.y*p.y;
-    if(d2==0)
-        return p;
+   // if(d2<0.01f)
+   //     return p;
     float mag=Q_rsqrt(d2);
     return (vec2f){(p.x)*mag, (p.y)*mag};
 }

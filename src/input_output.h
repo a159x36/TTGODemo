@@ -19,3 +19,4 @@ void storage_write_int(char *name, int val);
 void storage_read_string(char *name, char *def, char *dest, int len);
 void storage_write_string(char *name, char *val);
 void edit_stored_string(char *name, char *prompt);
+void showfps();
