@@ -100,6 +100,7 @@ void event_handler(void *arg, esp_event_base_t event_base,
         } else if(event_id==MQTT_EVENT_DATA) {    
 //            char message[event->data_len+2];
 //            snprintf(message,event->data_len+2,"%s\n",event->data);
+            event->data[event->data_len]=0;
             snprintf(network_event,sizeof(network_event),"MQTT_DATA\n%s\n",event->data);
             int r,g,b;
             if(sscanf(event->data,"%d,%d,%d",&r,&g,&b)==3)
@@ -263,7 +264,7 @@ void web_client(void) {
 
 void mqtt() {
     wifi_connect(1);
-    esp_mqtt_client_config_t mqtt_cfg = { .uri = "mqtt://mail.marginz.co.nz" };
+    esp_mqtt_client_config_t mqtt_cfg = { .uri = "mqtt://mqtt.webhop.org" };
     esp_mqtt_client_handle_t client = NULL;
     char c;
     do {
