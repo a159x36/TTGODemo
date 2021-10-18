@@ -24,6 +24,7 @@
 #include "demos.h"
 #include "graphics3d.h"
 #include "input_output.h"
+#include "esp_bt.h"
 
 #define PAD_START 3
 #define PAD_END 5
@@ -73,7 +74,7 @@ void wifi_menu() {
     }
     while(1) {
         char *entries[]={"Scan","Connect","Access Point",
-                         "Settings", "Back"};
+                         "Settings", "BT", "Back"};
         sel=demo_menu("Wifi Menu",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
@@ -89,6 +90,9 @@ void wifi_menu() {
                 wifi_settings_menu();
                 break;
             case 4:
+                bt_demo();
+                break;
+            case 5:
                 return;
         }
     }
@@ -151,7 +155,7 @@ void network_menu() {
 
 
 void app_main() {
-
+   // esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
     input_output_init();
    
     // Initialize NVS
@@ -163,15 +167,14 @@ void app_main() {
         err = nvs_flash_init();
     }
     ESP_ERROR_CHECK( err );
-    // ===== Set time zone to NZST======
-    setenv("TZ", "	NZST-12", 0);
+    // ===== Set time zone to NZ Time======
+    setenv("TZ","NZST-12NZDT,M9.5.0,M4.1.0/3",1);
     tzset();
     uint32_t user2=*((uint32_t *)0x3FF64024);
     if(user2!=0x70000000) is_emulator=1; 
     // ==========================
     time(&time_now);
     tm_info = localtime(&time_now);
-
 
     graphics_init();
     cls(0);

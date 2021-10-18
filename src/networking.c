@@ -25,6 +25,12 @@
 #include "FreeSansBold24pt7b.h"
 #include <driver/touch_pad.h>
 #include "esp_wpa2.h"
+#include "esp_bt.h"
+#include "esp_bt_main.h"
+#include "esp_gap_bt_api.h"
+#include "esp_bt_device.h"
+#include "esp_spp_api.h"
+
 
 #include "graphics3d.h"
 #include "input_output.h"
@@ -336,4 +342,159 @@ void time_demo() {
     } while(get_input()!=RIGHT_DOWN);
     sntp_stop();
 }
+static void esp_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param) {
 
+    if(param->disc_res.bda)
+        snprintf(network_event,64,"GAP:%d\n%x:%x:%x:%x:%x:%x",event,
+            param->disc_res.bda[0],
+            param->disc_res.bda[1],
+            param->disc_res.bda[2],
+            param->disc_res.bda[3],
+            param->disc_res.bda[4],
+            param->disc_res.bda[5],
+            );
+        else
+        snprintf(network_event,64,"GAP:%d",event);
+}
+static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
+{
+    char *s;
+    static const esp_spp_sec_t sec_mask = ESP_SPP_SEC_NONE;
+    static const esp_spp_role_t role_slave = ESP_SPP_ROLE_SLAVE;
+    snprintf(network_event,64,"BT:%d",event);
+    switch (event) {
+    case ESP_SPP_INIT_EVT:
+        ESP_LOGI(TAG, "ESP_SPP_INIT_EVT");
+        esp_bt_dev_set_device_name("My BT Device");
+        esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+        esp_spp_start_srv(sec_mask,role_slave, 0, "SPP_SERVER");
+        break;
+    case ESP_SPP_DISCOVERY_COMP_EVT:
+        ESP_LOGI(TAG, "ESP_SPP_DISCOVERY_COMP_EVT");
+        break;
+    case ESP_SPP_OPEN_EVT:
+        ESP_LOGI(TAG, "ESP_SPP_OPEN_EVT");
+        break;
+    case ESP_SPP_CLOSE_EVT:
+        ESP_LOGI(TAG, "ESP_SPP_CLOSE_EVT");
+        break;
+    case ESP_SPP_START_EVT:
+        ESP_LOGI(TAG, "ESP_SPP_START_EVT");
+        xEventGroupSetBits(network_event_group, CONNECTED_BIT);
+        break;
+    case ESP_SPP_CL_INIT_EVT:
+        ESP_LOGI(TAG, "ESP_SPP_CL_INIT_EVT");
+        break;
+    case ESP_SPP_DATA_IND_EVT:
+        ESP_LOGI(TAG, "ESP_SPP_DATA_IND_EVT len=%d handle=%d",
+                 param->data_ind.len, param->data_ind.handle);
+        esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len);
+    
+        /*
+        s=(char *)(param->data_ind.data)+1;
+        lastcommand=(char)*(param->data_ind.data);
+        if(lastcommand=='C')
+            sscanf(s,"%d",&mode);
+        else
+            sscanf(s,"%d,%d\n",&xo,&yo);
+        if(mode==1) {
+            int bb=bout;
+            if(lastcommand=='M')
+                bb=(bout+7)%8;
+            bubbles[bb].x=xo;
+            bubbles[bb].y=yo;
+            bubbles[bb].sz=1;
+            bubbles[bb].col = pixelFromOffset(offset);
+            if(lastcommand=='D' && (bout+1)%8!=bin)
+                bout=(bout+1)%8;
+        }
+        */
+     //   ESP_LOGI(TAG, "OFFSETS %d %d",xo,yo);
+        break;
+    case ESP_SPP_CONG_EVT:
+        ESP_LOGI(TAG, "ESP_SPP_CONG_EVT");
+        break;
+    case ESP_SPP_WRITE_EVT:
+        ESP_LOGI(TAG, "ESP_SPP_WRITE_EVT");
+        break;
+    case ESP_SPP_SRV_OPEN_EVT:
+        ESP_LOGI(TAG, "ESP_SPP_SRV_OPEN_EVT");
+//        gettimeofday(&time_old, NULL);
+        break;
+    default:
+        break;
+    }
+}
+
+void bt_demo() {
+    network_event_group = xEventGroupCreate();
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK( ret );
+
+
+    esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+    if ((ret = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
+        ESP_LOGE(TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    if ((ret = esp_bt_controller_enable(ESP_BT_MODE_CLASSIC_BT)) != ESP_OK) {
+        ESP_LOGE(TAG, "%s enable controller failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    if ((ret = esp_bluedroid_init()) != ESP_OK) {
+        ESP_LOGE(TAG, "%s initialize bluedroid failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    if ((ret = esp_bluedroid_enable()) != ESP_OK) {
+        ESP_LOGE(TAG, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+    esp_bt_dev_set_device_name("ESP32");
+    esp_bt_gap_register_callback(esp_gap_cb);
+    esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
+
+    /* inititialize device information and status */
+ //   bt_app_gap_init();
+
+    esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, 10, 0);
+
+
+/*
+    if ((ret = esp_spp_register_callback(esp_spp_cb)) != ESP_OK) {
+        ESP_LOGE(TAG, "%s spp register failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+
+    if ((ret = esp_spp_init(ESP_SPP_MODE_CB)) != ESP_OK) {
+        ESP_LOGE(TAG, "%s spp init failed: %s\n", __func__, esp_err_to_name(ret));
+        return;
+    }
+    */
+    do {
+        cls(0);
+        setFont(FONT_DEJAVU18);
+        setFontColour(0,0,0);
+        draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
+        print_xy("Bluetooth\n",5,3);
+        setFont(FONT_UBUNTU16);
+        setFontColour(255,255,255);
+        gprintf(network_event);
+        if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
+            gprintf("connected\n");
+        }
+        flip_frame();
+    } while(get_input()!=RIGHT_DOWN);
+//    xEventGroupWaitBits(network_event_group, CONNECTED_BIT,
+//                            false, true, portMAX_DELAY);
+    esp_bluedroid_disable();
+    esp_bluedroid_deinit();
+    esp_bt_controller_disable();
+    esp_bt_controller_deinit();
+}

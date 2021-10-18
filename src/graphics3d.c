@@ -19,7 +19,7 @@ colourtype diffuse={20,220,40};
 typedef  struct {uint8_t p[8]; uint16_t col; int16_t z;} quadtype;
 #define MAXQUADS 24*32
 int nquads;
-quadtype quads[MAXQUADS];
+quadtype *quads;
 
 inline int clamp(int x,int min,int max) {
     const int t = x < min ? min : x;
@@ -144,8 +144,10 @@ void bezier(vec3f const p[4][4], vec3f np[7][7]) {
 
 void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col) {
 
-    static vec3f np[7][7];
-    static vec3f p[4][4];
+    if(quads==0)
+        quads=malloc(sizeof(quadtype) * MAXQUADS);
+    vec3f np[7][7];
+    vec3f p[4][4];
     diffuse=col;
     rotation=rot;
     offsetx=pos.x;

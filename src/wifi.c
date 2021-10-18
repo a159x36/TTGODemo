@@ -206,13 +206,17 @@ void wifi_connect(int onlyconnect) {
     } while(get_input()!=RIGHT_DOWN);
 }
 
+wifi_ap_record_t *ap_info;
+ wifi_ap_record_t *ap_list;
 void wifi_scan(int setap) {
     cls(0);
     init_wifi(SCAN);
     uint16_t number = DEFAULT_SCAN_LIST_SIZE;
-    static wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
-    static wifi_ap_record_t ap_list[DEFAULT_SCAN_LIST_SIZE];
-    memset(ap_info, 0, sizeof(ap_info));
+    if(ap_info==0)
+        ap_info=malloc(sizeof(wifi_ap_record_t)*DEFAULT_SCAN_LIST_SIZE);
+    if(ap_list==0)
+        ap_list=malloc(sizeof(wifi_ap_record_t)*DEFAULT_SCAN_LIST_SIZE);
+    memset(ap_info, 0, sizeof(wifi_ap_record_t)*DEFAULT_SCAN_LIST_SIZE);
     setFont(FONT_UBUNTU16);
     setFontColour(255,255,255);
     print_xy("Scanning...",5,3);

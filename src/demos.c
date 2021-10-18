@@ -235,8 +235,8 @@ extern image_header  bubble;
 void bubble_demo() {
     static int high_score=0;
     high_score=storage_read_int("highscore",0);
-    static char score_str[256];
-    static pos stars[NSTARS];
+    char score_str[256];
+    pos stars[NSTARS];
     set_orientation(PORTRAIT);
     for(int i=0;i<NSTARS;i++) {
         stars[i].x=rand()%display_width;
