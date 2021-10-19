@@ -30,7 +30,9 @@
 #include "esp_gap_bt_api.h"
 #include "esp_bt_device.h"
 #include "esp_spp_api.h"
-
+#include "esp_hidh.h"
+#include "esp_hid_gap.h"
+#include "esp_hidh_gattc.h"
 
 #include "graphics3d.h"
 #include "input_output.h"
@@ -351,7 +353,7 @@ static void esp_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param
             param->disc_res.bda[2],
             param->disc_res.bda[3],
             param->disc_res.bda[4],
-            param->disc_res.bda[5],
+            param->disc_res.bda[5]
             );
         else
         snprintf(network_event,64,"GAP:%d",event);
@@ -426,6 +428,64 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     }
 }
 
+void hidh_callback(void *handler_args, esp_event_base_t base, int32_t id, void *event_data)
+{
+    esp_hidh_event_t event = (esp_hidh_event_t)id;
+    esp_hidh_event_data_t *param = (esp_hidh_event_data_t *)event_data;
+
+    switch (event) {
+    case ESP_HIDH_OPEN_EVENT: {
+        const uint8_t *bda = esp_hidh_dev_bda_get(param->open.dev);
+        ESP_LOGI(TAG, ESP_BD_ADDR_STR " OPEN: %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->open.dev));
+        esp_hidh_dev_dump(param->open.dev, stdout);
+        break;
+    }
+    case ESP_HIDH_BATTERY_EVENT: {
+        const uint8_t *bda = esp_hidh_dev_bda_get(param->battery.dev);
+        ESP_LOGI(TAG, ESP_BD_ADDR_STR " BATTERY: %d%%", ESP_BD_ADDR_HEX(bda), param->battery.level);
+        break;
+    }
+    case ESP_HIDH_INPUT_EVENT: {
+        const uint8_t *bda = esp_hidh_dev_bda_get(param->input.dev);
+        ESP_LOGI(TAG, ESP_BD_ADDR_STR " INPUT: %8s, MAP: %2u, ID: %3u, Len: %d, Data:", ESP_BD_ADDR_HEX(bda), esp_hid_usage_str(param->input.usage), param->input.map_index, param->input.report_id, param->input.length);
+        ESP_LOG_BUFFER_HEX(TAG, param->input.data, param->input.length);
+        break;
+    }
+    case ESP_HIDH_FEATURE_EVENT: {
+        const uint8_t *bda = esp_hidh_dev_bda_get(param->feature.dev);
+        ESP_LOGI(TAG, ESP_BD_ADDR_STR " FEATURE: %8s, MAP: %2u, ID: %3u, Len: %d", ESP_BD_ADDR_HEX(bda), esp_hid_usage_str(param->feature.usage), param->feature.map_index, param->feature.report_id, param->feature.length);
+        ESP_LOG_BUFFER_HEX(TAG, param->feature.data, param->feature.length);
+        break;
+    }
+    case ESP_HIDH_CLOSE_EVENT: {
+        const uint8_t *bda = esp_hidh_dev_bda_get(param->close.dev);
+        ESP_LOGI(TAG, ESP_BD_ADDR_STR " CLOSE: '%s' %s", ESP_BD_ADDR_HEX(bda), esp_hidh_dev_name_get(param->close.dev), esp_hid_disconnect_reason_str(esp_hidh_dev_transport_get(param->close.dev), param->close.reason));
+        //MUST call this function to free all allocated memory by this device
+        esp_hidh_dev_free(param->close.dev);
+        break;
+    }
+    default:
+        ESP_LOGI(TAG, "EVENT: %d", event);
+        break;
+    }
+}
+void print_result(esp_hid_scan_result_t *r) {
+    gprintf("%s:" ESP_BD_ADDR_STR " RSSI: %d %s\n", (r->transport == ESP_HID_TRANSPORT_BLE) ? "BLE" : "BT ", 
+            ESP_BD_ADDR_HEX(r->bda), r->rssi, r->name ? r->name : "");
+    /*
+    gprintf("USAGE: %s, ", esp_hid_usage_str(r->usage));
+    if (r->transport == ESP_HID_TRANSPORT_BLE) {
+        gprintf("APPEARANCE: 0x%04x, ", r->ble.appearance);
+        gprintf("ADDR_TYPE: '%s', ", ble_addr_type_str(r->ble.addr_type));
+    } else {
+        gprintf("COD: %s[", esp_hid_cod_major_str(r->bt.cod.major));
+//                esp_hid_cod_minor_print(r->bt.cod.minor, stdout);
+        gprintf("] srv 0x%03x, ", r->bt.cod.service);
+//                print_uuid(&r->bt.uuid);
+        gprintf(", ");
+    }
+    */
+}
 void bt_demo() {
     network_event_group = xEventGroupCreate();
     esp_err_t ret = nvs_flash_init();
@@ -434,8 +494,13 @@ void bt_demo() {
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK( ret );
-
-
+    ESP_ERROR_CHECK( esp_hid_gap_init(ESP_BT_MODE_BTDM) );
+    ESP_ERROR_CHECK( esp_ble_gattc_register_callback(esp_hidh_gattc_event_handler) );
+    esp_hidh_config_t config = {
+        .callback = hidh_callback,
+    };
+    ESP_ERROR_CHECK( esp_hidh_init(&config) );
+/*
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     if ((ret = esp_bt_controller_init(&bt_cfg)) != ESP_OK) {
         ESP_LOGE(TAG, "%s initialize controller failed: %s\n", __func__, esp_err_to_name(ret));
@@ -460,41 +525,43 @@ void bt_demo() {
     esp_bt_gap_register_callback(esp_gap_cb);
     esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
 
-    /* inititialize device information and status */
  //   bt_app_gap_init();
 
     esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, 10, 0);
-
-
-/*
-    if ((ret = esp_spp_register_callback(esp_spp_cb)) != ESP_OK) {
-        ESP_LOGE(TAG, "%s spp register failed: %s\n", __func__, esp_err_to_name(ret));
-        return;
-    }
-
-    if ((ret = esp_spp_init(ESP_SPP_MODE_CB)) != ESP_OK) {
-        ESP_LOGE(TAG, "%s spp init failed: %s\n", __func__, esp_err_to_name(ret));
-        return;
-    }
-    */
+*/
+    size_t results_len = 0;
+    ESP_LOGI(TAG, "SCAN...");
+    //start scan for HID devices
+    esp_hid_scan_async(10);
     do {
         cls(0);
         setFont(FONT_DEJAVU18);
         setFontColour(0,0,0);
         draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
-        print_xy("Bluetooth\n",5,3);
-        setFont(FONT_UBUNTU16);
+        print_xy("Bluetooth Scan\n",5,3);
+        setFont(FONT_SMALL);
         setFontColour(255,255,255);
-        gprintf(network_event);
-        if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
-            gprintf("connected\n");
+        esp_hid_scan_result_t *res=bt_scan_results;
+        ESP_LOGI(TAG, "SCAN...%p",res);
+        while(res) {
+            print_result(res);
+            res=res->next;
         }
+        res=ble_scan_results;
+        while(res) {
+            print_result(res);
+            res=res->next;
+        }    
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
-//    xEventGroupWaitBits(network_event_group, CONNECTED_BIT,
-//                            false, true, portMAX_DELAY);
-    esp_bluedroid_disable();
-    esp_bluedroid_deinit();
-    esp_bt_controller_disable();
-    esp_bt_controller_deinit();
+
+ 
+    //    gprintf(network_event);
+   //     if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
+    //        gprintf("connected\n");
+    //    }
+    esp_hidh_deinit();
+    esp_hid_gap_deinit();
+ 
+    
 }

@@ -24,7 +24,6 @@
 #include "demos.h"
 #include "graphics3d.h"
 #include "input_output.h"
-#include "esp_bt.h"
 
 #define PAD_START 3
 #define PAD_END 5
@@ -155,7 +154,6 @@ void network_menu() {
 
 
 void app_main() {
-   // esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
     input_output_init();
    
     // Initialize NVS
