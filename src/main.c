@@ -139,8 +139,8 @@ void app_main() {
     // ===== Set time zone to NZST======
     setenv("TZ", "	NZST-12", 0);
     tzset();
-    uint32_t user2=*((uint32_t *)0x3FF64024);
-    if(user2!=0x70000000) is_emulator=1; 
+    //uint32_t user2=*((uint32_t *)0x3FF64024);
+    //if(user2!=0x70000000) is_emulator=1; 
     // ==========================
     time(&time_now);
     tm_info = localtime(&time_now);
