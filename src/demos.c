@@ -1,4 +1,3 @@
-
 #include <esp_system.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
@@ -85,6 +84,7 @@ typedef struct pos {
     float speed;
     int colour;
 } pos;
+
 
 // simple spaceship and starfield demo
 void spaceship_demo() {

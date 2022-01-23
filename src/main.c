@@ -93,6 +93,33 @@ void wifi_menu() {
         }
     }
 }
+void graphics_menu() {
+    int sel=0;
+    while(1) {
+        char *entries[]={"Boids", "Life","Image Wave", "Spaceship", get_orientation()?"Landscape":"Portrait","Back"};
+        sel=demo_menu("Graphics Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        switch(sel) {
+            case 0:
+                boids_demo();            
+                break;
+            case 1:
+                life_demo();
+                break;
+            case 2:
+                image_wave_demo();
+                break;
+            case 3:
+                spaceship_demo();
+                break;
+            case 4:
+                set_orientation(1-get_orientation());
+                break;
+            case 5:
+                return;
+        }
+    }
+}
+
 void network_menu() {
     int sel=0;
     while(1) {
@@ -152,29 +179,24 @@ void app_main() {
     if (DISPLAY_IMAGE_WAVE) image_wave_init();
     int sel=0;
     while(1) {
-        char *entries[]={"Life","Image Wave","Networking",
+        char *entries[]={"Graphics","Networking",
                         "Teapots","Bubble Game",
                         get_orientation()?"Landscape":"Portrait"};
         sel=demo_menu("Demo",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
-                life_demo();
+                graphics_menu();
                 break;
             case 1:
-                image_wave_demo();
-                break;
-            case 2:
-//                if(emulator) spaceship_demo();
-//                else wifi_menu();
                 network_menu();
                 break;
-            case 3:
+            case 2:
                 teapots_demo();
                 break;
-            case 4:
+            case 3:
                 bubble_demo();
                 break;
-            case 5:
+            case 4:
                 set_orientation(1-get_orientation());
                 break;
         }

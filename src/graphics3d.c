@@ -51,34 +51,6 @@ void draw_triangle_3d(vec3f p0, vec3f p1, vec3f p2, uint16_t colour) {
     draw_triangle(a.x,a.y,b.x,b.y,c.x,c.y, colour);
 }
 
-inline vec3f mid3d(vec3f const p0, vec3f const p1) {
-    return (vec3f){(p0.x+p1.x)*0.5f, (p0.y+p1.y)*0.5f, (p0.z+p1.z)*0.5f};
-}
-
-inline vec3f cross3d(vec3f p0, vec3f p1) {
-    return (vec3f) {(p0.y)*(p1.z)-(p0.z)*(p1.y),
-                    (p0.z)*(p1.x)-(p0.x)*(p1.z),
-                    (p0.x)*(p1.y)-(p0.y)*(p1.x)};
-}
-
-inline float Q_rsqrt( float number )
-{	
-	const float x2 = number * 0.5F;
-	const float threehalfs = 1.5F;
-	union {float f; uint32_t i; } conv  = { .f = number };
-	conv.i  = 0x5f3759df - ( conv.i >> 1 );
-	conv.f  *= threehalfs - ( x2 * conv.f * conv.f );
-	return conv.f;
-}
-
-inline vec3f normalise(vec3f p) {
-    float mag=Q_rsqrt(p.x*p.x+p.y*p.y+p.z*p.z);
-    return (vec3f){(p.x)*mag, (p.y)*mag, (p.z)*mag};
-}
-
-inline float dot(vec3f p0,vec3f p1) {
-    return ((p0.x*p1.x))+((p0.y*p1.y))+((p0.z*p1.z));
-}
 
 inline void maketrotationmatrix() {
     float ca=cos(rotation.x);
@@ -101,8 +73,9 @@ inline void maketrotationmatrix() {
 
 void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     
-    vec3f normal=normalise(cross3d(sub3d(p2,p0),sub3d(p3,p0)));
+    vec3f normal=cross3d(sub3d(p2,p0),sub3d(p3,p0));
     if(normal.z<=0) return;
+    normal=normalise(normal);
     if(nquads>=MAXQUADS) return;
     float light=clampf(dot(normal,lightpos),0,1.0);
 
@@ -179,6 +152,8 @@ void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col) {
     offsety=pos.y;
     teapot_size=size;
     maketrotationmatrix();
+
+    // the teapot is made from 32 patches as follows:
     // 28-32=base
     // 20-27=lid
     // 16-19=spout
