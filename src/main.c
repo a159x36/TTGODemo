@@ -164,7 +164,7 @@ void app_main() {
     }
     ESP_ERROR_CHECK( err );
     // ===== Set time zone to NZST======
-    setenv("TZ", "	NZST-12", 0);
+    setenv("TZ", "NZST-12:00:00NZDT-13:00:00,M9.5.0,M4.1.0", 0);
     tzset();
     //uint32_t user2=*((uint32_t *)0x3FF64024);
     //if(user2!=0x70000000) is_emulator=1; 
