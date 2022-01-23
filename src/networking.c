@@ -258,13 +258,15 @@ void web_client(void) {
         r = jd_decomp(&decoder, jpg_write, 1);
     free(work);
     flip_frame();
-    while(get_input()!=RIGHT_DOWN);
+    while(get_input()!=RIGHT_DOWN) vTaskDelay(100);
 }
 
 
 void mqtt() {
     wifi_connect(1);
-    esp_mqtt_client_config_t mqtt_cfg = { .uri = "mqtt://mqtt.webhop.org" };
+    char client_name[32];
+    sprintf(client_name,"esp32_%d",rand()%1000);
+    esp_mqtt_client_config_t mqtt_cfg = { .uri = "mqtt://mqtt.webhop.org",.client_id=client_name};
     esp_mqtt_client_handle_t client = NULL;
     char c;
     do {

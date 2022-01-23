@@ -52,6 +52,8 @@ void init_wifi(wifi_mode_type mode) {
     xEventGroupClearBits(network_event_group, AUTH_FAIL | CONNECTED_BIT);
     wifi_mode=mode;
     if(network_interface!=NULL) {
+        esp_wifi_stop();
+        esp_wifi_deinit();
         esp_event_loop_delete_default();
         esp_wifi_clear_default_wifi_driver_and_handlers(network_interface);
         esp_netif_destroy(network_interface);
