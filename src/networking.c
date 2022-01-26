@@ -265,6 +265,7 @@ void web_client(void) {
 void mqtt() {
     wifi_connect(1);
     char client_name[32];
+    srand(esp_timer_get_time());
     sprintf(client_name,"esp32_%d",rand()%1000);
     esp_mqtt_client_config_t mqtt_cfg = { .uri = "mqtt://mqtt.webhop.org",.client_id=client_name};
     esp_mqtt_client_handle_t client = NULL;
