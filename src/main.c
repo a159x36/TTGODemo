@@ -60,6 +60,25 @@ void wifi_settings_menu() {
         }
     }
 }
+
+void led_menu() {
+    int sel=0;
+    while(1) {
+        char *entries[]={"Pattern", "Circles",  "Back"};
+        sel=demo_menu("Leds Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        switch(sel) {
+            case 0:
+                led_pattern(0);
+                break;
+            case 1:
+                led_circles();
+                break;
+            case 2:
+                return;
+        }
+    }
+}
+
 void wifi_menu() {
     int sel=0;
     if(is_emulator) {
@@ -179,7 +198,7 @@ void app_main() {
     if (DISPLAY_IMAGE_WAVE) image_wave_init();
     int sel=0;
     while(1) {
-        char *entries[]={"Graphics","Networking",
+        char *entries[]={"Graphics","Networking","Leds",
                         "Teapots","Bubble Game",
                         get_orientation()?"Landscape":"Portrait"};
         sel=demo_menu("Demo",sizeof(entries)/sizeof(char *),entries,sel);
@@ -191,12 +210,15 @@ void app_main() {
                 network_menu();
                 break;
             case 2:
-                teapots_demo();
+                led_menu();
                 break;
             case 3:
-                bubble_demo();
+                teapots_demo();
                 break;
             case 4:
+                bubble_demo();
+                break;
+            case 5:
                 set_orientation(1-get_orientation());
                 break;
         }

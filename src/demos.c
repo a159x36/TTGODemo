@@ -19,6 +19,7 @@
 #include <nvs_flash.h>
 #include <time.h>
 #include "input_output.h"
+#include "esp32_digital_led_lib.h"
 
 const char *tag="T Display";
 // voltage reference calibration for Battery ADC
@@ -364,4 +365,167 @@ void bubble_demo() {
     while(get_input());
     while(get_input()!=RIGHT_DOWN)
         vTaskDelay(1);
+}
+
+void led_pattern() {
+    strand_t STRAND = {.rmtChannel = 0,
+               .gpioNum = 33,
+                .ledType = LED_WS2812B_V3,
+                .brightLimit = 255,
+                .numPixels = 256, };
+    digitalLeds_initStrands(&STRAND, 1);
+    digitalLeds_resetPixels(&STRAND);
+         int v=0;
+     int it=0;
+     int colR=1,colG=255,colB=1;
+     int colR1=255,colG1=1,colB1=1;
+     int mode=4;
+     int delay=1000;
+     while (1) {
+         /*
+         cls(bg_col);
+         setFont(FONT_DEJAVU18);
+         setFontColour(0,0,0);
+         draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
+         print_xy("MQTT\n",5,3);
+         setFont(FONT_UBUNTU16);
+         setFontColour(255,255,255);
+         gprintf(network_event);
+         setFontColour(0,255,0);
+         
+         if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
+           //  printf("Connected\n");
+             if(client==NULL) {
+                 client=esp_mqtt_client_init(&mqtt_cfg);
+                 esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, event_handler, NULL);
+                 esp_mqtt_client_start(client);
+             }
+             */
+         //    esp_netif_ip_info_t ip_info;
+         //    esp_netif_get_ip_info(network_interface,&ip_info);
+         //    gprintf(IPSTR"\n",IP2STR(&ip_info.ip));
+         //    gprintf(IPSTR"\n",IP2STR(&ip_info.gw));
+        // }
+         //flip_frame();
+         //if(get_input()==LEFT_DOWN) break;
+         int r,g,b;
+         switch(mode) {
+             case 0: // 1/30 shift
+                 for (uint16_t i = STRAND.numPixels-1; i>0; i--) {
+                     STRAND.pixels[i] = STRAND.pixels[i-1];
+                 }
+                 if(v==0) {
+                     it++;
+                     if(it%2==0) {
+                         if(colR==0) r=rand()&255; else r=colR;
+                         if(colG==0) g=rand()&255; else g=colG;
+                         if(colB==0) b=rand()&255; else b=colB;
+                     } else {
+                         if(colR1==0) r=rand()&255; else r=colR1;
+                         if(colG1==0) g=rand()&255; else g=colG1;
+                         if(colB1==0) b=rand()&255; else b=colB1;
+                     }
+                     STRAND.pixels[0]=pixelFromRGB(r,g,b);
+                 }
+                     else STRAND.pixels[0] = pixelFromRGB(0,0,0);
+                 break;
+             case 1: // 1/30 shift other way
+                 for (uint16_t i = 0;i<STRAND.numPixels-1; i++) {
+                     STRAND.pixels[i] = STRAND.pixels[i+1];
+                 }
+                 if(v==0) {
+                     it++;
+                     if(it%2==0) {
+                         if(colR==0) r=rand()&255; else r=colR;
+                         if(colG==0) g=rand()&255; else g=colG;
+                         if(colB==0) b=rand()&255; else b=colB;
+                     } else {
+                         if(colR1==0) r=rand()&255; else r=colR1;
+                         if(colG1==0) g=rand()&255; else g=colG1;
+                         if(colB1==0) b=rand()&255; else b=colB1;
+                     }
+                     STRAND.pixels[STRAND.numPixels-1]=pixelFromRGB(r,g,b);
+                 }
+                     else STRAND.pixels[STRAND.numPixels-1] = pixelFromRGB(0,0,0);
+                 break;
+             case 2: // all on 
+                 it++;
+                 if(it>50) {
+                     if(colR1==0) r=rand()&255; else r=colR1;
+                     if(colG1==0) g=rand()&255; else g=colG1;
+                     if(colB1==0) b=rand()&255; else b=colB1;
+                 } else {
+                     if(colR==0) r=rand()&255; else r=colR;
+                     if(colG==0) g=rand()&255; else g=colG;
+                     if(colB==0) b=rand()&255; else b=colB;
+                 }
+                 if(it>100)
+                     it=0;
+                 for (uint16_t i = 0;i<STRAND.numPixels; i++)
+                     STRAND.pixels[i] =  pixelFromRGB(r>>4,g>>4,b>>4);
+                
+                 break;
+             case 3:
+                 for (uint16_t i = 0;i<STRAND.numPixels; i++)
+                     STRAND.pixels[i] =  pixelFromRGB(rand()&255/16,rand()&255/16,rand()&255/16);
+                 break;
+             case 4:
+                 for (uint16_t i = 0;i<STRAND.numPixels; i++) {
+                     it++;
+                     float d=((sinf((float)(i+it)/15.0f))+1.0f)/2.0f;
+                    // ets_printf("%d %f\n",i,d);
+                     r=d*colR+(1.0f-d)*colR1;
+                     g=d*colG+(1.0f-d)*colG1;
+                     b=d*colB+(1.0f-d)*colB1;
+                     STRAND.pixels[i] =  pixelFromRGB(r,g,b);
+                 }
+                 break;
+             
+         }
+         v=(v+1)%30;
+         digitalLeds_updatePixels(&STRAND);
+         ets_delay_us(delay*100);
+     //    if(!gpio_get_level(0)) delay--;
+     //    if(!gpio_get_level(35)) delay++;
+         if(delay<0) delay=0;
+     }
+
+
+
+}
+
+void led_circles(void) {
+    float xo=7.5,yo=7.5;
+                strand_t STRANDS[] = { 
+                    {.rmtChannel = 0, .gpioNum = 15, .ledType = LED_WS2812B_V3, .brightLimit = 16, .numPixels = 256},
+                };
+                strand_t *pStrand= &STRANDS[0];
+                gpio_set_direction(15, GPIO_MODE_OUTPUT);
+                digitalLeds_initStrands(pStrand, 1);
+                digitalLeds_resetPixels(pStrand);
+                float offset=0;
+                int delay=100;
+                while(1) {
+                    for (uint16_t i = 0; i < pStrand->numPixels; i++) {
+                        int y1 = i / 16;
+                        int x1 = i % 16;
+                        if (y1 % 2) x1 = 15 - x1;
+                        y1 = 15 - y1;
+                        float d =
+                            (sqrt((y1 - yo) * (y1 - yo) + (x1 - xo) * (x1 - xo)) +
+                            offset) /
+                            4.0;
+                        int red=(int)round(4.0*sin(1.0299*d)+4.0);
+                        int green=(int)round(4.0*cos(3.2235*d)+4.0);
+                        int blue=(int)round(4.0*sin(5.1234*d)+4.0);
+                        pStrand->pixels[i] = pixelFromRGB(red/2, green/2, blue/2);
+                    }
+                    digitalLeds_updatePixels(pStrand);
+                    offset-=0.1f;
+                    ets_delay_us(delay*100);
+                    if(!gpio_get_level(0)) delay--;
+                    if(!gpio_get_level(35)) delay++;
+                    if(delay<0) delay=0;
+                }
+
 }
