@@ -20,6 +20,8 @@
 #include <time.h>
 #include "input_output.h"
 #include "esp32_digital_led_lib.h"
+#include "networking.h"
+#include <mqtt_client.h>
 
 const char *tag="T Display";
 // voltage reference calibration for Battery ADC
@@ -367,47 +369,70 @@ void bubble_demo() {
         vTaskDelay(1);
 }
 
-void led_pattern() {
+int colR=1,colG=128,colB=1;
+int colR1=128,colG1=1,colB1=1;
+int mode=0;
+int delay=1000;
+
+#define TOPICROOT "/tree"
+static void my_mqtt_led_callback(int event_id, void *event_data) {
+    esp_mqtt_event_handle_t event = event_data;
+    if(event_id==MQTT_EVENT_CONNECTED) {
+        esp_mqtt_client_handle_t client = event->client;
+        esp_mqtt_client_subscribe(client, TOPICROOT"/colour1", 0);
+        esp_mqtt_client_subscribe(client, TOPICROOT"/colour2", 0);
+        esp_mqtt_client_subscribe(client, TOPICROOT"/mode", 0);
+        esp_mqtt_client_subscribe(client, TOPICROOT"/delay", 0);
+    } else if(event_id==MQTT_EVENT_DATA) {    
+        event->data[event->data_len]=0;
+        int r,g,b;
+        if(!strncmp(event->topic,TOPICROOT"/mode",event->topic_len))
+            sscanf(event->data,"%d",&mode);
+        if(!strncmp(event->topic,TOPICROOT"/colour1",event->topic_len)) {
+            if(sscanf(event->data,"%d,%d,%d",&r,&g,&b)>=3) {
+                colR=r;colG=g;colB=b;
+            }
+        }
+        if(!strncmp(event->topic,TOPICROOT"/colour2",event->topic_len)) {
+            if(sscanf(event->data,"%d,%d,%d",&r,&g,&b)>=3) {
+                colR1=r;colG1=g;colB1=b;
+            }
+        }
+        if(!strncmp(event->topic,TOPICROOT"/delay",event->topic_len))
+            sscanf(event->data,"%d",&delay);
+    }
+}
+
+
+void mqtt_leds() {
     strand_t STRAND = {.rmtChannel = 0,
-               .gpioNum = 33,
+               .gpioNum = 17,
                 .ledType = LED_WS2812B_V3,
                 .brightLimit = 255,
                 .numPixels = 256, };
+    gpio_set_direction(17, GPIO_MODE_OUTPUT);
     digitalLeds_initStrands(&STRAND, 1);
     digitalLeds_resetPixels(&STRAND);
-         int v=0;
-     int it=0;
-     int colR=1,colG=255,colB=1;
-     int colR1=255,colG1=1,colB1=1;
-     int mode=4;
-     int delay=1000;
+    int v=0;
+    int it=0;
+    mqtt_connect(my_mqtt_led_callback);
+
      while (1) {
-         /*
+         
          cls(bg_col);
          setFont(FONT_DEJAVU18);
          setFontColour(0,0,0);
          draw_rectangle(3,0,display_width,18,rgbToColour(220,220,0));
-         print_xy("MQTT\n",5,3);
+         print_xy("MQTT LEDs\n",5,3);
          setFont(FONT_UBUNTU16);
          setFontColour(255,255,255);
          gprintf(network_event);
          setFontColour(0,255,0);
+         gprintf("Mode %d\nCol1 (%d,%d,%d)\nCol2 (%d,%d,%d)\nDelay %d\n",
+                    mode,colR,colG,colB,colR1,colG1,colB1,delay);
+         flip_frame();
          
-         if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
-           //  printf("Connected\n");
-             if(client==NULL) {
-                 client=esp_mqtt_client_init(&mqtt_cfg);
-                 esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, event_handler, NULL);
-                 esp_mqtt_client_start(client);
-             }
-             */
-         //    esp_netif_ip_info_t ip_info;
-         //    esp_netif_get_ip_info(network_interface,&ip_info);
-         //    gprintf(IPSTR"\n",IP2STR(&ip_info.ip));
-         //    gprintf(IPSTR"\n",IP2STR(&ip_info.gw));
-        // }
-         //flip_frame();
-         //if(get_input()==LEFT_DOWN) break;
+         if(get_input()==LEFT_DOWN) break;
          int r,g,b;
          switch(mode) {
              case 0: // 1/30 shift
@@ -471,7 +496,7 @@ void led_pattern() {
                  break;
              case 4:
                  for (uint16_t i = 0;i<STRAND.numPixels; i++) {
-                     it++;
+                     
                      float d=((sinf((float)(i+it)/15.0f))+1.0f)/2.0f;
                     // ets_printf("%d %f\n",i,d);
                      r=d*colR+(1.0f-d)*colR1;
@@ -479,53 +504,56 @@ void led_pattern() {
                      b=d*colB+(1.0f-d)*colB1;
                      STRAND.pixels[i] =  pixelFromRGB(r,g,b);
                  }
+                 it++;
                  break;
-             
+            case 5:
+                for (int i = 0;i<STRAND.numPixels; i++) {
+                    STRAND.pixels[i] =  pixelFromRGB(i,0,0);
+                }
+                break;
          }
          v=(v+1)%30;
          digitalLeds_updatePixels(&STRAND);
+//         vTaskDelay(delay);
          ets_delay_us(delay*100);
      //    if(!gpio_get_level(0)) delay--;
      //    if(!gpio_get_level(35)) delay++;
          if(delay<0) delay=0;
      }
-
-
-
+     mqtt_disconnect();
 }
 
 void led_circles(void) {
     float xo=7.5,yo=7.5;
-                strand_t STRANDS[] = { 
-                    {.rmtChannel = 0, .gpioNum = 15, .ledType = LED_WS2812B_V3, .brightLimit = 16, .numPixels = 256},
-                };
-                strand_t *pStrand= &STRANDS[0];
-                gpio_set_direction(15, GPIO_MODE_OUTPUT);
-                digitalLeds_initStrands(pStrand, 1);
-                digitalLeds_resetPixels(pStrand);
-                float offset=0;
-                int delay=100;
-                while(1) {
-                    for (uint16_t i = 0; i < pStrand->numPixels; i++) {
-                        int y1 = i / 16;
-                        int x1 = i % 16;
-                        if (y1 % 2) x1 = 15 - x1;
-                        y1 = 15 - y1;
-                        float d =
-                            (sqrt((y1 - yo) * (y1 - yo) + (x1 - xo) * (x1 - xo)) +
-                            offset) /
-                            4.0;
-                        int red=(int)round(4.0*sin(1.0299*d)+4.0);
-                        int green=(int)round(4.0*cos(3.2235*d)+4.0);
-                        int blue=(int)round(4.0*sin(5.1234*d)+4.0);
-                        pStrand->pixels[i] = pixelFromRGB(red/2, green/2, blue/2);
-                    }
-                    digitalLeds_updatePixels(pStrand);
-                    offset-=0.1f;
-                    ets_delay_us(delay*100);
-                    if(!gpio_get_level(0)) delay--;
-                    if(!gpio_get_level(35)) delay++;
-                    if(delay<0) delay=0;
-                }
+    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 16, .numPixels = 256},};
+    strand_t *pStrand= &STRANDS[0];
+    gpio_set_direction(17, GPIO_MODE_OUTPUT);
+    digitalLeds_initStrands(pStrand, 1);
+    digitalLeds_resetPixels(pStrand);
+    float bright=8;
+    float offset=0;
+    int delay=100;
+    while(get_input()!=LEFT_DOWN) {
+        for (uint16_t i = 0; i < pStrand->numPixels; i++) {
+            int y1 = i / 16;
+            int x1 = i % 16;
+            if (y1 % 2) x1 = 15 - x1;
+            y1 = 15 - y1;
+            float d =
+                (sqrt((y1 - yo) * (y1 - yo) + (x1 - xo) * (x1 - xo)) +
+                offset) /
+                4.0;
+            int red=(int)round(bright*sin(1.0299*d)+bright);
+            int green=(int)round(bright*cos(3.2235*d)+bright);
+            int blue=(int)round(bright*sin(5.1234*d)+bright);
+            pStrand->pixels[i] = pixelFromRGB(red/2, green/2, blue/2);
+        }
+        digitalLeds_updatePixels(pStrand);
+        offset-=0.1f;
+        ets_delay_us(delay*100);
+        if(!gpio_get_level(0)) delay--;
+        if(!gpio_get_level(35)) delay++;
+        if(delay<0) delay=0;
+    }
 
 }

@@ -80,8 +80,8 @@ void init_wifi(wifi_mode_type mode) {
         wifi_config_t wifi_config = { .ap = {
                 .ssid = SSID,
                 .ssid_len = strlen(SSID),
-                .channel = 13,
-                .password = WIFI_PASSWORD,
+                .channel = 3,
+                .password = "",
                 .max_connection = 8,
                 .authmode = WIFI_AUTH_OPEN
             },

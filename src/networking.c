@@ -43,6 +43,13 @@ void set_event_message(const char *s) {
     snprintf(network_event,sizeof(network_event),"%s\n",s);
 }
 
+
+mqtt_callback_type mqtt_callback=0;
+
+void set_mqtt_callback(mqtt_callback_type callback) {
+    mqtt_callback=callback;
+}
+
 void event_handler(void *arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data) {
     const char* wifi_messages[]={
@@ -88,24 +95,8 @@ void event_handler(void *arg, esp_event_base_t event_base,
     }
     if (!strcmp(event_base,"MQTT_EVENTS")) {
         set_event_message(mqtt_messages[event_id%sizeof(mqtt_messages)]);
-        esp_mqtt_event_handle_t event = event_data;
-        if(event_id==MQTT_EVENT_CONNECTED) {
-            esp_mqtt_client_handle_t client = event->client;
-            esp_netif_ip_info_t ip_info;
-            esp_netif_get_ip_info(network_interface,&ip_info);
-            char buf[64];
-            snprintf(buf,sizeof(buf),"Connected:"IPSTR,IP2STR(&ip_info.ip));
-            esp_mqtt_client_publish(client, "/topic/a159236", buf, 0, 1, 0);
-            esp_mqtt_client_subscribe(client, "/topic/a159236", 0);
-        } else if(event_id==MQTT_EVENT_DATA) {    
-//            char message[event->data_len+2];
-//            snprintf(message,event->data_len+2,"%s\n",event->data);
-            event->data[event->data_len]=0;
-            snprintf(network_event,sizeof(network_event),"MQTT_DATA\n%s\n",event->data);
-            int r,g,b;
-            if(sscanf(event->data,"%d,%d,%d",&r,&g,&b)==3)
-                bg_col=rgbToColour(r,g,b);
-        }
+        if(mqtt_callback) mqtt_callback(event_id,event_data);
+        
     }
 }
 
@@ -262,14 +253,58 @@ void web_client(void) {
 }
 
 
-void mqtt() {
-    wifi_connect(1);
+esp_mqtt_client_handle_t mqtt_client = NULL;
+
+void mqtt_connect(mqtt_callback_type callback) {
     char client_name[32];
+    if(mqtt_client!=NULL) mqtt_disconnect();
     srand(esp_timer_get_time());
     sprintf(client_name,"esp32_%d",rand()%1000);
     esp_mqtt_client_config_t mqtt_cfg = { .uri = "mqtt://mqtt.webhop.org",.client_id=client_name};
-    esp_mqtt_client_handle_t client = NULL;
+    wifi_connect(1);
+    if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
+        mqtt_client=esp_mqtt_client_init(&mqtt_cfg);
+        esp_mqtt_client_register_event(mqtt_client, ESP_EVENT_ANY_ID, event_handler, NULL);
+        set_mqtt_callback(callback);
+        esp_mqtt_client_start(mqtt_client);
+    }
+}
+
+void mqtt_disconnect() {
+    if(mqtt_client!=NULL) {
+        esp_mqtt_client_stop(mqtt_client);
+        esp_mqtt_client_destroy(mqtt_client);
+        mqtt_client=NULL;
+        mqtt_callback=NULL;
+    }
+}
+
+
+static void my_mqtt_callback(int event_id, void *event_data) {
+    esp_mqtt_event_handle_t event = event_data;
+    if(event_id==MQTT_EVENT_CONNECTED) {
+        esp_mqtt_client_handle_t client = event->client;
+        esp_netif_ip_info_t ip_info;
+        esp_netif_get_ip_info(network_interface,&ip_info);
+        char buf[64];
+        snprintf(buf,sizeof(buf),"Connected:"IPSTR,IP2STR(&ip_info.ip));
+        esp_mqtt_client_publish(client, "/topic/a159236", buf, 0, 1, 0);
+        esp_mqtt_client_subscribe(client, "/topic/a159236", 0);
+    } else if(event_id==MQTT_EVENT_DATA) {    
+//            char message[event->data_len+2];
+//            snprintf(message,event->data_len+2,"%s\n",event->data);
+        event->data[event->data_len]=0;
+        snprintf(network_event,sizeof(network_event),"MQTT_DATA\n%s\n",event->data);
+        int r,g,b;
+        if(sscanf(event->data,"%d,%d,%d",&r,&g,&b)==3)
+            bg_col=rgbToColour(r,g,b);
+    }
+}
+
+void mqtt() {
+    
     char c;
+    mqtt_connect(my_mqtt_callback);
     do {
         cls(bg_col);
         setFont(FONT_DEJAVU18);
@@ -282,11 +317,6 @@ void mqtt() {
         setFontColour(0,255,0);
         if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
             gprintf("Connected\n");
-            if(client==NULL) {
-                client=esp_mqtt_client_init(&mqtt_cfg);
-                esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, event_handler, NULL);
-                esp_mqtt_client_start(client);
-            }
             esp_netif_ip_info_t ip_info;
             esp_netif_get_ip_info(network_interface,&ip_info);
             gprintf(IPSTR"\n",IP2STR(&ip_info.ip));
@@ -295,13 +325,9 @@ void mqtt() {
         flip_frame();
         c=get_input();
         if(c==LEFT_DOWN)
-            esp_mqtt_client_publish(client, "/topic/a159236", "left button", 0, 1, 0);
+            esp_mqtt_client_publish(mqtt_client, "/topic/a159236", "left button", 0, 1, 0);
     } while(c!=RIGHT_DOWN);
-    if(client!=NULL) {
-        esp_mqtt_client_stop(client);
-        esp_mqtt_client_destroy(client);
-        client=NULL;
-    }
+    mqtt_disconnect();
 }
 
 void time_demo() {

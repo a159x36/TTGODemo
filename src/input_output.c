@@ -191,9 +191,9 @@ void input_output_init() {
     }
 }
 
-uint16_t touch_values[4];
-uint64_t touch_time=0;
-uint64_t delay=400000;
+static uint16_t touch_values[4];
+static uint64_t touch_time=0;
+static uint64_t delay=400000;
 
 vec2 get_touchpads() {
     const int TOUCH_PADS[4] = {2, 3, 9, 8};

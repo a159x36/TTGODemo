@@ -13,13 +13,13 @@ void web_client();
 void mqtt();
 void time_demo();
 void boids_demo();
-void led_pattern();
+void mqtt_leds();
 void led_circles(void);
 
 
 // put your wifi ssid name and password in here
-#define WIFI_SSID "MUGuests"
-#define WIFI_PASSWORD ""
+//#define WIFI_SSID "MUGuests"
+//#define WIFI_PASSWORD ""
 
 #define USE_WIFI 1
 #define DISPLAY_VOLTAGE 1

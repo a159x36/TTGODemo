@@ -17,6 +17,12 @@ esp_netif_t *network_interface;
 extern char network_event[64];
 extern int bg_col;
 
+typedef void (*mqtt_callback_type)(int event_id, void *event_data);
+void set_mqtt_callback(mqtt_callback_type callback);
+
+void mqtt_connect(mqtt_callback_type callback);
+void mqtt_disconnect();
+
 void event_handler(void *arg, esp_event_base_t event_base,
                                 int32_t event_id, void* event_data);
 void init_wifi(wifi_mode_type mode);
