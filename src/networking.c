@@ -56,7 +56,7 @@ void event_handler(void *arg, esp_event_base_t event_base,
         "WIFI_READY","SCAN_DONE","STA_START","STA_STOP","STA_CONNECTED",
         "STA_DISCONNECTED","STA_AUTHMODE_CHANGE","WPS_ER_SUCCESS","STA_WPS_ER_FAILED",
         "STA_WPS_ER_TIMEOUT","STA_WPS_ER_PIN","STA_WPS_ER_PBC_OVERLAP","AP_START",
-        "AP_STOP","AP_STACONNECTED","AP_STADISCONNECTED","AP_PROBEREQRECVED"}; 
+        "AP_STOP","AP_STACONNECTED","AP_STADISCONNECTED","AP_PROBEREQRECVED"};
     const char* ip_messages[]={
          "STA_GOT_IP","STA_LOST_IP","AP_STAIPASSIGNED","GOT_IP6","ETH_GOT_IP","PPP_GOT_IP","PPP_LOST_IP"};
     const char* mqtt_messages[]={
@@ -78,8 +78,8 @@ void event_handler(void *arg, esp_event_base_t event_base,
             if(disconnect_data->reason==WIFI_REASON_AUTH_FAIL ||
                 disconnect_data->reason==WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT)
                 xEventGroupSetBits(network_event_group, AUTH_FAIL);
-            else        
-                esp_wifi_connect();
+            // else
+            //     esp_wifi_connect();
             break;
         case WIFI_EVENT_SCAN_DONE:
             esp_wifi_scan_start(NULL, false);
@@ -96,13 +96,13 @@ void event_handler(void *arg, esp_event_base_t event_base,
     if (!strcmp(event_base,"MQTT_EVENTS")) {
         set_event_message(mqtt_messages[event_id%sizeof(mqtt_messages)]);
         if(mqtt_callback) mqtt_callback(event_id,event_data);
-        
+
     }
 }
 
 void init_eth() {
     esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
-    if(network_interface==NULL) {    
+    if(network_interface==NULL) {
         esp_netif_init();
         network_event_group = xEventGroupCreate();
         ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -119,7 +119,7 @@ void init_eth() {
         esp_eth_mac_t *mac = esp_eth_mac_new_openeth(&mac_config);
         esp_eth_phy_t *phy = esp_eth_phy_new_dp83848(&phy_config);
         esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
-        
+
         ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle));
         glue=esp_eth_new_netif_glue(eth_handle);
         ESP_ERROR_CHECK(esp_netif_attach(network_interface, glue));
@@ -243,7 +243,7 @@ void web_client(void) {
     JDEC decoder;
     char *work=malloc(3100);
     xTaskCreate(web_task,"wt",4096,NULL,1,&wtask);
-    int r = jd_prepare(&decoder, jpg_read, work, 3100, NULL);    
+    int r = jd_prepare(&decoder, jpg_read, work, 3100, NULL);
     cls(bg_col);
     if (r == JDR_OK)
         r = jd_decomp(&decoder, jpg_write, 1);
@@ -290,9 +290,7 @@ static void my_mqtt_callback(int event_id, void *event_data) {
         snprintf(buf,sizeof(buf),"Connected:"IPSTR,IP2STR(&ip_info.ip));
         esp_mqtt_client_publish(client, "/topic/a159236", buf, 0, 1, 0);
         esp_mqtt_client_subscribe(client, "/topic/a159236", 0);
-    } else if(event_id==MQTT_EVENT_DATA) {    
-//            char message[event->data_len+2];
-//            snprintf(message,event->data_len+2,"%s\n",event->data);
+    } else if(event_id==MQTT_EVENT_DATA) {
         event->data[event->data_len]=0;
         snprintf(network_event,sizeof(network_event),"MQTT_DATA\n%s\n",event->data);
         int r,g,b;
@@ -302,7 +300,7 @@ static void my_mqtt_callback(int event_id, void *event_data) {
 }
 
 void mqtt() {
-    
+
     char c;
     mqtt_connect(my_mqtt_callback);
     do {

@@ -91,7 +91,8 @@ void wifi_menu() {
         return;
     }
     while(1) {
-        char *entries[]={"Scan","Connect","Access Point",
+        int connected=wifi_connected();
+        char *entries[]={"Scan",connected?"Disconnect":"Connect","Access Point",
                          "Settings", "Back"};
         sel=demo_menu("Wifi Menu",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
@@ -99,7 +100,10 @@ void wifi_menu() {
                 wifi_scan(0);
                 break;
             case 1:
-                wifi_connect(0);
+                if(connected)
+                    wifi_disconnect();
+                else 
+                    wifi_connect(0);
                 break;
             case 2:
                 wifi_ap();

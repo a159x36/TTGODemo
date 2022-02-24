@@ -7,6 +7,8 @@ void teapots_demo();
 void bubble_demo();
 void wifi_scan();
 void wifi_connect(int onlyconnect);
+int wifi_connected();
+void wifi_disconnect();
 void wifi_ap();
 void webserver();
 void web_client();
