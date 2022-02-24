@@ -164,7 +164,9 @@ void webserver(void) {
         setFont(FONT_DEJAVU18);
         setFontColour(255,255,0);
         draw_rectangle(0,0,display_width,display_height,bg_col);
-        gprintf("Web Server\nConnect to the ESP 32\nAccess Point and go to\nhttp://192.168.4.1/");
+        esp_netif_ip_info_t ip_info;
+        esp_netif_get_ip_info(network_interface,&ip_info);
+        gprintf("Web Server\nConnect to the ESP 32\nAccess Point and go to\nhttp://"IPSTR,IP2STR(&ip_info.ip));
         setFont(FONT_SMALL);
         setFontColour(255,255,255);
         print_xy(network_event,1,display_height-8);
