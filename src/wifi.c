@@ -30,21 +30,67 @@
 #include "input_output.h"
 #include "networking.h"
 
-
+typedef void (* wifi_tx_done_cb_t)(uint8_t ifidx, uint8_t *data, uint16_t *data_len, bool txStatus);
+esp_err_t esp_wifi_set_tx_done_cb(wifi_tx_done_cb_t cb);
 
 wifi_mode_type wifi_mode=0;
 
 #define TAG "Wifi"
+#define SNIFF 0
  
 #define DEFAULT_SCAN_LIST_SIZE 24
 
+void sniff(void *buf, wifi_promiscuous_pkt_type_t type) {
+    ets_printf("\nRx type: %d\n",type);
+    uint8_t *ubuf=buf;
+    wifi_pkt_rx_ctrl_t *pkt=buf;
+    for(int i=0;i<pkt->sig_len+28;i++) {
+        if((i%16)==0) ets_printf("\n%04x: ",i);
+        ets_printf("%02x ",ubuf[i]);
+    }
+    ets_printf("\n");
+}
+
+void sniff_tx(uint8_t ifidx, uint8_t *data, uint16_t *data_len, bool txStatus) {
+    ets_printf("\nTx type: %d\n",data[0]);
+    uint8_t *ubuf=data;
+    for(int i=0;i<*data_len;i++) {
+        if((i%16)==0) ets_printf("\n%04x: ",i);
+        ets_printf("%02x ",ubuf[i]);
+    }
+    ets_printf("\n");
+}
+
+int wifi_connected() {
+    if(network_event_group)
+        return xEventGroupGetBits(network_event_group) & CONNECTED_BIT;
+    return 0;
+}
+
+void wifi_disconnect() {
+    if(network_interface!=NULL) {
+        if(wifi_connected()) {
+            esp_wifi_disconnect();
+            while(wifi_connected());
+        }
+      //  esp_wifi_deauth_sta(0);
+      //  xEventGroupClearBits(network_event_group, AUTH_FAIL | CONNECTED_BIT);
+        esp_wifi_stop();
+        esp_wifi_deinit();
+        esp_event_loop_delete_default();
+        esp_wifi_clear_default_wifi_driver_and_handlers(network_interface);
+        esp_netif_destroy(network_interface);
+        esp_netif_deinit();
+        network_interface=NULL;
+    }
+}
 void init_wifi(wifi_mode_type mode) {
-   
+
     if(is_emulator) {
         init_eth();
         return;
     }
-    if(wifi_mode==mode && network_interface!=NULL && 
+    if(wifi_mode==mode && network_interface!=NULL &&
             (xEventGroupGetBits(network_event_group) & CONNECTED_BIT))
         return;
     if(network_event_group==NULL)
@@ -58,6 +104,7 @@ void init_wifi(wifi_mode_type mode) {
         esp_wifi_clear_default_wifi_driver_and_handlers(network_interface);
         esp_netif_destroy(network_interface);
         esp_netif_deinit();
+       // network_interface=NULL;
     }
     esp_netif_init();
     ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -86,7 +133,7 @@ void init_wifi(wifi_mode_type mode) {
                 .authmode = WIFI_AUTH_OPEN
             },
         };
-        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));        
+        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config)); 
     } else {
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         esp_wifi_set_protocol(ESP_IF_WIFI_STA,protocol);
@@ -106,7 +153,19 @@ void init_wifi(wifi_mode_type mode) {
             ESP_ERROR_CHECK( esp_wifi_sta_wpa2_ent_enable() );
         }
     }
+
     ESP_ERROR_CHECK(esp_wifi_start());
+    if(SNIFF) {
+        ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(sniff));
+        ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true));
+        wifi_promiscuous_filter_t pf;
+        pf.filter_mask=WIFI_PROMIS_FILTER_MASK_MGMT | WIFI_PROMIS_FILTER_MASK_CTRL;
+        ESP_ERROR_CHECK(esp_wifi_set_promiscuous_filter(&pf));
+        pf.filter_mask=WIFI_PROMIS_CTRL_FILTER_MASK_ALL;
+        ESP_ERROR_CHECK(esp_wifi_set_promiscuous_ctrl_filter(&pf));
+        ESP_ERROR_CHECK(esp_wifi_set_tx_done_cb(sniff_tx));
+    }
+
 }
 
 int ap_cmp(const void *ap1, const void *ap2) {
@@ -249,7 +308,7 @@ void wifi_scan(int setap) {
         print_xy("Access Points\n",5,3);
         setFont(FONT_SMALL);
         for (int i = 0; (i < DEFAULT_SCAN_LIST_SIZE) && (i < ap_number); i++) {
-            if(i==highlight) 
+            if(i==highlight)
                 draw_rectangle(0,18+i*10,display_width,10,rgbToColour(10,100,100));
             print_ap_info(ap_list+i);
         }
