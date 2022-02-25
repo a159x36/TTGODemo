@@ -159,7 +159,7 @@ void init_wifi(wifi_mode_type mode) {
         ESP_ERROR_CHECK(esp_wifi_set_promiscuous_rx_cb(sniff));
         ESP_ERROR_CHECK(esp_wifi_set_promiscuous(true));
         wifi_promiscuous_filter_t pf;
-        pf.filter_mask=WIFI_PROMIS_FILTER_MASK_MGMT | WIFI_PROMIS_FILTER_MASK_CTRL;
+        pf.filter_mask=WIFI_PROMIS_FILTER_MASK_MGMT | WIFI_PROMIS_FILTER_MASK_DATA;
         ESP_ERROR_CHECK(esp_wifi_set_promiscuous_filter(&pf));
         pf.filter_mask=WIFI_PROMIS_CTRL_FILTER_MASK_ALL;
         ESP_ERROR_CHECK(esp_wifi_set_promiscuous_ctrl_filter(&pf));

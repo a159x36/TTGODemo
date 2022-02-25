@@ -56,14 +56,14 @@ void event_handler(void *arg, esp_event_base_t event_base,
         "WIFI_READY","SCAN_DONE","STA_START","STA_STOP","STA_CONNECTED",
         "STA_DISCONNECTED","STA_AUTHMODE_CHANGE","WPS_ER_SUCCESS","STA_WPS_ER_FAILED",
         "STA_WPS_ER_TIMEOUT","STA_WPS_ER_PIN","STA_WPS_ER_PBC_OVERLAP","AP_START",
-        "AP_STOP","AP_STACONNECTED","AP_STADISCONNECTED","AP_PROBEREQRECVED"};
+        "AP_STOP","AP_STA_CONNECTED","AP_STA_DISCONNECTED","AP_PROBEREQRECVED"};
     const char* ip_messages[]={
-         "STA_GOT_IP","STA_LOST_IP","AP_STAIPASSIGNED","GOT_IP6","ETH_GOT_IP","PPP_GOT_IP","PPP_LOST_IP"};
+         "STA_GOT_IP","STA_LOST_IP","AP_STA_IPASSIGNED","GOT_IP6","ETH_GOT_IP","PPP_GOT_IP","PPP_LOST_IP"};
     const char* mqtt_messages[]={
         "MQTT_ERROR","MQTT_CONNECTED","MQTT_DISCONNECTED","MQTT_SUBSCRIBED",
         "MQTT_UNSUBSCRIBED","MQTT_PUBLISHED","MQTT_DATA","MQTT_BEFORE_CONNECT"};
     if (event_base == WIFI_EVENT) {
-        set_event_message(wifi_messages[event_id%WIFI_EVENT_MAX]);
+        set_event_message(wifi_messages[event_id%ARRAY_LENGTH(wifi_messages)]);
         system_event_sta_disconnected_t* disconnect_data;
         switch (event_id) {
         case WIFI_EVENT_STA_START:
@@ -87,14 +87,14 @@ void event_handler(void *arg, esp_event_base_t event_base,
         }
     }
     if (event_base == IP_EVENT) {
-        set_event_message(ip_messages[event_id%sizeof(ip_messages)]);
+        set_event_message(ip_messages[event_id%ARRAY_LENGTH(ip_messages)]);
         if ((event_id == IP_EVENT_STA_GOT_IP) ||
             (event_id == IP_EVENT_AP_STAIPASSIGNED) || (event_id == IP_EVENT_ETH_GOT_IP)) {
             xEventGroupSetBits(network_event_group, CONNECTED_BIT);
         }
     }
     if (!strcmp(event_base,"MQTT_EVENTS")) {
-        set_event_message(mqtt_messages[event_id%sizeof(mqtt_messages)]);
+        set_event_message(mqtt_messages[event_id%ARRAY_LENGTH(mqtt_messages)]);
         if(mqtt_callback) mqtt_callback(event_id,event_data);
 
     }
@@ -166,7 +166,7 @@ void webserver(void) {
         draw_rectangle(0,0,display_width,display_height,bg_col);
         esp_netif_ip_info_t ip_info;
         esp_netif_get_ip_info(network_interface,&ip_info);
-        gprintf("Web Server\nConnect to the ESP 32\nAccess Point and go to\nhttp://"IPSTR,IP2STR(&ip_info.ip));
+        gprintf("Web Server\nConnect to the ESP 32\nAccess Point and go to\nhttp://"IPSTR"/\nor http://localhost:16555/\non the emulator",IP2STR(&ip_info.ip));
         setFont(FONT_SMALL);
         setFontColour(255,255,255);
         print_xy(network_event,1,display_height-8);
