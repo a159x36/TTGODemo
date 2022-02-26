@@ -280,8 +280,8 @@ int IRAM_ATTR digitalLeds_updatePixels(strand_t * pStrand)
   RMT.conf_ch[pStrand->rmtChannel].conf1.mem_rd_rst = 1;
   RMT.conf_ch[pStrand->rmtChannel].conf1.tx_start = 1;
 
-  //xSemaphoreTake(gRmtSem, portMAX_DELAY);
-  //xSemaphoreGive(gRmtSem);
+  xSemaphoreTake(gRmtSem, portMAX_DELAY);
+  xSemaphoreGive(gRmtSem);
 
   return 0;
 }

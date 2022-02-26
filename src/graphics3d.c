@@ -9,7 +9,7 @@
 #include <freertos/task.h>
 
 vec3f lightpos={0,0,0.7};
-float teapot_size=20;
+//float teapot_size=20;
 float rmx[3][3];
 vec3f rotation={PI/2-0.2,0,0};
 int offsetx;
@@ -150,7 +150,7 @@ void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col) {
     rotation=rot;
     offsetx=pos.x;
     offsety=pos.y;
-    teapot_size=size;
+    //teapot_size=size;
     maketrotationmatrix();
 
     // the teapot is made from 32 patches as follows:
@@ -165,7 +165,7 @@ void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col) {
     for(int ii=0;ii<32;ii++) {
         for(int j=0;j<4;j++) {
             for(int k=0;k<4; k++) {
-                p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1],teapot_size,teapot_size,teapot_size);
+                p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1],size,size,size);
             }
         }
         bezier(p,np);
@@ -174,6 +174,40 @@ void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col) {
                 add_quad(np[j-1][k-1],np[j-1][k],np[j][k],np[j][k-1]);
             }
         }
+    }
+    draw_all_quads();
+}
+
+const uint8_t cubeQuads[][4] = { 
+	{0,2,3,1}, 
+	{1,3,7,5}, 
+	{3,2,6,7}, 
+	{0,1,5,4}, 
+	{0,4,6,2}, 
+	{5,7,6,4}, 
+};
+
+void draw_cube(vec2 pos, float size, vec3f rot) {
+    colourtype col;
+    rotation=rot;
+    offsetx=pos.x;
+    offsety=pos.y;
+    nquads=0;
+    maketrotationmatrix();
+    for(int q=0;q<6;q++) {
+        vec3f quad[4];
+        for(int i=0;i<4;i++) {
+            int v=cubeQuads[q][i];
+            quad[i].x=(v&4)?1.0:-1.0;
+            quad[i].y=(v&2)?1.0:-1.0;
+            quad[i].z=(v&1)?3.0:1.0;
+            quad[i]=vrotate(quad[i],size,size,size);
+        }
+        col.r=((q+1)&1)*255;
+        col.g=(((q+1)>>1)&1)*255;
+        col.b=(((q+1)>>2)&1)*255;
+        diffuse=col;
+        add_quad(quad[0],quad[1],quad[2],quad[3]);
     }
     draw_all_quads();
 }

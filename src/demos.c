@@ -209,6 +209,7 @@ void teapots_demo() {
         cls(0);//rgbToColour(0x87,0xce,0xeb));
         for(int i=0;i<nteapots; i++) {
             draw_teapot(pos[i],s[i],rot[i],col[i]);
+            //draw_cube(pos[i],s[i],rot[i]);
             rot[i]=add3d(rot[i],(vec3f){0.0523,0.0354,0.0714});
         }
         flip_frame();
@@ -405,11 +406,7 @@ static void my_mqtt_led_callback(int event_id, void *event_data) {
 
 
 void mqtt_leds() {
-    strand_t STRAND = {.rmtChannel = 0,
-               .gpioNum = 17,
-                .ledType = LED_WS2812B_V3,
-                .brightLimit = 255,
-                .numPixels = 256, };
+    strand_t STRAND = {.rmtChannel = 0,.gpioNum = 17,.ledType = LED_WS2812B_V3,.brightLimit = 255,.numPixels = 256, };
     gpio_set_direction(17, GPIO_MODE_OUTPUT);
     digitalLeds_initStrands(&STRAND, 1);
     digitalLeds_resetPixels(&STRAND);
@@ -523,14 +520,75 @@ void mqtt_leds() {
      mqtt_disconnect();
 }
 
+void led_numbers(void) {
+    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 16, .numPixels = 256},};
+    strand_t *pStrand= STRANDS;
+    gpio_set_direction(17, GPIO_MODE_OUTPUT);
+    digitalLeds_initStrands(pStrand, 1);
+    digitalLeds_resetPixels(pStrand);
+    int n=0;
+    char str[2]="0";
+    int delay=1000;
+    while(get_input()!=LEFT_DOWN) {
+        draw_rectangle(0,0,16,16,0);
+        setFont(FONT_DEJAVU18);
+        setFontColour((200+n)&255,n&255,(100+n)&255);
+        str[0]=n%10+'0';
+        n++;
+        print_xy(str,2,1);
+        for(int i=0;i<16;i++)
+            for(int j=0;j<16;j++) {
+                uint16_t pixel=frame_buffer[j+i*display_width];
+                uint8_t r=(pixel>>11)<<3;
+                uint8_t g=(pixel>>5)<<2;
+                uint8_t b=pixel<<3;
+                pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(r/16, g/16, b/16);
+            }
+        digitalLeds_updatePixels(pStrand);
+        ets_delay_us(delay*100);
+    }
+}
+
+void led_cube(void) {
+    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 16, .numPixels = 256},};
+    strand_t *pStrand= STRANDS;
+    vec3f rot=(vec3f){(rand()%31415)/5000.0,(rand()%31415)/5000.0,(rand()%31415)/5000.0};;
+    vec2 pos=(vec2){16,16};
+    float size=8;
+    gpio_set_direction(17, GPIO_MODE_OUTPUT);
+    digitalLeds_initStrands(pStrand, 1);
+    digitalLeds_resetPixels(pStrand);
+    int delay=100;
+    while(get_input()!=LEFT_DOWN) {
+        draw_rectangle(0,0,32,32,rgbToColour(40,8,8));
+        draw_cube(pos,size,rot);
+        rot=add3d(rot,(vec3f){0.0523,0.0354,0.0714});
+        for(int i=0;i<16;i++)
+            for(int j=0;j<16;j++) {
+                uint16_t rr=0,gg=0,bb=0;
+                for(int ii=0;ii<2;ii++)
+                    for(int jj=0;jj<2;jj++) {
+                        uint16_t pixel=frame_buffer[j*2+jj+(i*2+ii)*display_width];
+                        uint8_t r=(pixel>>11)<<3;
+                        uint8_t g=(pixel>>5)<<2;
+                        uint8_t b=pixel<<3;
+                        rr+=r;gg+=g;bb+=b;
+                    }
+                pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(rr/64, gg/64, bb/64);
+            }
+        digitalLeds_updatePixels(pStrand);
+        ets_delay_us(delay*100);
+    }
+}
+
 void led_circles(void) {
     float xo=7.5,yo=7.5;
-    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 16, .numPixels = 256},};
+    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 128, .numPixels = 256},};
     strand_t *pStrand= &STRANDS[0];
     gpio_set_direction(17, GPIO_MODE_OUTPUT);
     digitalLeds_initStrands(pStrand, 1);
     digitalLeds_resetPixels(pStrand);
-    float bright=8;
+    float bright=64;
     float offset=0;
     int delay=100;
     while(get_input()!=LEFT_DOWN) {
@@ -555,5 +613,4 @@ void led_circles(void) {
         if(!gpio_get_level(35)) delay++;
         if(delay<0) delay=0;
     }
-
 }

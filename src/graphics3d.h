@@ -85,4 +85,5 @@ static inline float dot(vec3f p0,vec3f p1) {
 }
 
 void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col);
+void draw_cube(vec2 pos, float size, vec3f rot);
 #endif

@@ -1,4 +1,4 @@
-char * main_page_html="<!DOCTYPE html> \
+const char * main_page_html="<!DOCTYPE html> \
 <html><style>a {text-decoration: none;color:#000000;}  \
 div {padding:15px;} \
 </style> \

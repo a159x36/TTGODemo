@@ -64,7 +64,7 @@ void wifi_settings_menu() {
 void led_menu() {
     int sel=0;
     while(1) {
-        char *entries[]={"MQTT", "Circles",  "Back"};
+        char *entries[]={"MQTT", "Circles", "Numbers", "Cube", "Back"};
         sel=demo_menu("Leds Menu",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
@@ -74,6 +74,11 @@ void led_menu() {
                 led_circles();
                 break;
             case 2:
+                led_numbers();
+                break;
+            case 3:
+                led_cube();
+            case 4:
                 return;
         }
     }
