@@ -1,5 +1,3 @@
-
-
 #include <esp_system.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
@@ -21,7 +19,6 @@
 #include "demos.h"
 #include "lwip/sockets.h"
 #include <esp_http_server.h>
-#include "esp_eth.h"
 #include "mqtt_client.h"
 #include <driver/touch_pad.h>
 #include "esp_wpa2.h"
@@ -73,8 +70,6 @@ void wifi_disconnect() {
             esp_wifi_disconnect();
             while(wifi_connected());
         }
-      //  esp_wifi_deauth_sta(0);
-      //  xEventGroupClearBits(network_event_group, AUTH_FAIL | CONNECTED_BIT);
         esp_wifi_stop();
         esp_wifi_deinit();
         esp_event_loop_delete_default();
@@ -85,11 +80,6 @@ void wifi_disconnect() {
     }
 }
 void init_wifi(wifi_mode_type mode) {
-
-    if(is_emulator) {
-        init_eth();
-        return;
-    }
     if(wifi_mode==mode && network_interface!=NULL &&
             (xEventGroupGetBits(network_event_group) & CONNECTED_BIT))
         return;

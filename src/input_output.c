@@ -106,7 +106,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
     vec3f rotation={PI/2-0.2,0,0};
     float teapot_size=20;
     colourtype diffuse={20,220,40};
-    vec2 pos;
+    vec2f pos;
     int frame=0;
     while(1) {
         cls(rgbToColour(100,20,20));
@@ -114,7 +114,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
         //int twidth=print_xy(title, 0, -1);
         draw_rectangle(0,3,display_width,24,rgbToColour(220,220,0));
         draw_rectangle(0,select*18+24+3,display_width,18,rgbToColour(0,180,180));
-        pos=(vec2){display_width/2,display_height/2};
+        pos=(vec2f){display_width/2,display_height/2};
         if(get_orientation()) pos.y+=display_height/4;
         else pos.x+=display_width/4;
         draw_image(&bubble,bx,by);

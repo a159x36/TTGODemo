@@ -12,8 +12,7 @@ vec3f lightpos={0,0,0.7};
 //float teapot_size=20;
 float rmx[3][3];
 vec3f rotation={PI/2-0.2,0,0};
-int offsetx;
-int offsety;
+vec2f position={0,0};
 colourtype ambiant={16,16,16};
 colourtype diffuse={20,220,40};
 typedef  struct {uint8_t p[8]; uint16_t col; int16_t z;} quadtype;
@@ -112,8 +111,8 @@ inline vec3f vrotate(vec3f v, float f0, float f1, float f2) {
     v.x=v.x*f0;
     v.y=v.y*f1;
     v.z=(v.z-2.0)*f2;
-    return (vec3f){ (rmx[0][0]*v.x+rmx[0][1]*v.y+rmx[0][2]*v.z)+offsetx,
-                    (rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z)+offsety,
+    return (vec3f){ (rmx[0][0]*v.x+rmx[0][1]*v.y+rmx[0][2]*v.z)+position.x,
+                    (rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z)+position.y,
                     (rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z)};
 }
 
@@ -142,14 +141,13 @@ void bezier(vec3f const p[4][4], vec3f np[7][7]) {
 }
 
 
-void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col) {
+void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
 
     static vec3f np[7][7];
     static vec3f p[4][4];
     diffuse=col;
     rotation=rot;
-    offsetx=pos.x;
-    offsety=pos.y;
+    position=pos;
     //teapot_size=size;
     maketrotationmatrix();
 
@@ -187,11 +185,10 @@ const uint8_t cubeQuads[][4] = {
 	{5,7,6,4}, 
 };
 
-void draw_cube(vec2 pos, float size, vec3f rot) {
+void draw_cube(vec2f pos, float size, vec3f rot) {
     colourtype col;
     rotation=rot;
-    offsetx=pos.x;
-    offsety=pos.y;
+    position=pos;
     nquads=0;
     maketrotationmatrix();
     for(int q=0;q<6;q++) {

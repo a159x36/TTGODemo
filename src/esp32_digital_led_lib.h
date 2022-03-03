@@ -36,8 +36,6 @@ extern "C" {
 
 #include <stdint.h>
 
-#define DEBUG_ESP32_DIGITAL_LED_LIB 0
-
 typedef union {
   struct __attribute__ ((packed)) {
     uint8_t r, g, b, w;

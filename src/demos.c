@@ -24,10 +24,7 @@
 #include <mqtt_client.h>
 
 const char *tag="T Display";
-// voltage reference calibration for Battery ADC
-uint32_t vref;
-time_t time_now;
-struct tm *tm_info;
+
 
 void showfps() {
     static uint64_t current_time=0;
@@ -134,6 +131,8 @@ void spaceship_demo() {
 void image_wave_demo() {
     char buff[128];
     int frame = 0;
+    // voltage reference calibration for Battery ADC
+    uint32_t vref;  
     if (DISPLAY_VOLTAGE) {
         gpio_set_direction(34, GPIO_MODE_INPUT);
         // Configure ADC
@@ -162,7 +161,8 @@ void image_wave_demo() {
             setFontColour(20, 200, 200);
             print_xy(buff, 10, 10);
         }
-
+        time_t time_now;
+        struct tm *tm_info;
         time(&time_now);
         tm_info = localtime(&time_now);
         struct timeval tv_now;
@@ -184,14 +184,14 @@ void image_wave_demo() {
 void teapots_demo() {
     int nteapots=5;
     vec3f rot[nteapots];
-    vec2 pos[nteapots];
+    vec2f pos[nteapots];
     int s[nteapots];
     colourtype col[nteapots];
     for(int i=0;i<nteapots; i++) {
         rot[i]=(vec3f){(rand()%31415)/5000.0,
                 (rand()%31415)/5000.0,
                 (rand()%31415)/5000.0};
-        pos[i]=(vec2){rand()%(display_width-20)+10,
+        pos[i]=(vec2f){rand()%(display_width-20)+10,
                 rand()%(display_height-20)+10};
         col[i]=(colourtype){rand()%100+155,
                 rand()%100+155,
@@ -423,12 +423,12 @@ void mqtt_leds() {
          print_xy("MQTT LEDs\n",5,3);
          setFont(FONT_UBUNTU16);
          setFontColour(255,255,255);
+         gprintf("go to http://mqtt.webhop.org\n");
          gprintf(network_event);
          setFontColour(0,255,0);
          gprintf("Mode %d\nCol1 (%d,%d,%d)\nCol2 (%d,%d,%d)\nDelay %d\n",
                     mode,colR,colG,colB,colR1,colG1,colB1,delay);
          flip_frame();
-         
          if(get_input()==LEFT_DOWN) break;
          int r,g,b;
          switch(mode) {
@@ -519,9 +519,19 @@ void mqtt_leds() {
      }
      mqtt_disconnect();
 }
-
+void led_instructions() {
+    cls(bg_col);
+    setFont(FONT_DEJAVU18);
+    setFontColour(0,0,0);
+    draw_rectangle(0,0,display_width,18,rgbToColour(220,220,0));
+    gprintf("LED Demo\n");
+    setFont(FONT_UBUNTU16);
+    setFontColour(255,255,255);
+    gprintf("Connect LEDs to GPIO 17\nor switch to the\nrgbled window\non the emulator\n");
+    flip_frame();
+}
 void led_numbers(void) {
-    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 16, .numPixels = 256},};
+    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 128, .numPixels = 256},};
     strand_t *pStrand= STRANDS;
     gpio_set_direction(17, GPIO_MODE_OUTPUT);
     digitalLeds_initStrands(pStrand, 1);
@@ -529,6 +539,7 @@ void led_numbers(void) {
     int n=0;
     char str[2]="0";
     int delay=1000;
+    led_instructions();
     while(get_input()!=LEFT_DOWN) {
         draw_rectangle(0,0,16,16,0);
         setFont(FONT_DEJAVU18);
@@ -542,7 +553,7 @@ void led_numbers(void) {
                 uint8_t r=(pixel>>11)<<3;
                 uint8_t g=(pixel>>5)<<2;
                 uint8_t b=pixel<<3;
-                pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(r/16, g/16, b/16);
+                pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(r/2, g/2, b/2);
             }
         digitalLeds_updatePixels(pStrand);
         ets_delay_us(delay*100);
@@ -550,17 +561,18 @@ void led_numbers(void) {
 }
 
 void led_cube(void) {
-    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 16, .numPixels = 256},};
+    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 128, .numPixels = 256},};
     strand_t *pStrand= STRANDS;
     vec3f rot=(vec3f){(rand()%31415)/5000.0,(rand()%31415)/5000.0,(rand()%31415)/5000.0};;
-    vec2 pos=(vec2){16,16};
+    vec2f pos=(vec2f){16,16};
     float size=8;
     gpio_set_direction(17, GPIO_MODE_OUTPUT);
     digitalLeds_initStrands(pStrand, 1);
     digitalLeds_resetPixels(pStrand);
     int delay=100;
+    led_instructions();
     while(get_input()!=LEFT_DOWN) {
-        draw_rectangle(0,0,32,32,rgbToColour(40,8,8));
+        draw_rectangle(0,0,32,32,rgbToColour(20,20,20));
         draw_cube(pos,size,rot);
         rot=add3d(rot,(vec3f){0.0523,0.0354,0.0714});
         for(int i=0;i<16;i++)
@@ -574,10 +586,11 @@ void led_cube(void) {
                         uint8_t b=pixel<<3;
                         rr+=r;gg+=g;bb+=b;
                     }
-                pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(rr/64, gg/64, bb/64);
+                pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(rr/8, gg/8, bb/8);
             }
         digitalLeds_updatePixels(pStrand);
         ets_delay_us(delay*100);
+        showfps();
     }
 }
 
@@ -591,6 +604,7 @@ void led_circles(void) {
     float bright=64;
     float offset=0;
     int delay=100;
+    led_instructions();
     while(get_input()!=LEFT_DOWN) {
         for (uint16_t i = 0; i < pStrand->numPixels; i++) {
             int y1 = i / 16;
@@ -612,5 +626,6 @@ void led_circles(void) {
         if(!gpio_get_level(0)) delay--;
         if(!gpio_get_level(35)) delay++;
         if(delay<0) delay=0;
+        showfps();
     }
 }

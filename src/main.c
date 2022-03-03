@@ -29,12 +29,6 @@
 #define PAD_END 5
 
 #define SHOW_PADS
-/*
- This code has been modified from the espressif spi_master demo code
- it displays some demo graphics on the 240x135 LCD on a TTGO T-Display board.
-*/
-
-int is_emulator=0;
 
 void wifi_settings_menu() {
     int sel=0;
@@ -86,15 +80,6 @@ void led_menu() {
 
 void wifi_menu() {
     int sel=0;
-    if(is_emulator) {
-        setFont(FONT_DEJAVU24);
-        do {
-            cls(0);
-            print_xy("Wifi Not Available\nOn the Emulator",5,3);
-            flip_frame();
-        } while(get_input()!=RIGHT_DOWN);
-        return;
-    }
     while(1) {
         int connected=wifi_connected();
         char *entries[]={"Scan",connected?"Disconnect":"Connect","Access Point",
@@ -151,7 +136,7 @@ void graphics_menu() {
 void network_menu() {
     int sel=0;
     while(1) {
-        char *entries[]={"Wifi","MQTT","Time","Web Server","Web Client", /*get_orientation()?"Landscape":"Portrait",*/"Back"};
+        char *entries[]={"Wifi","MQTT","Time","Web Server","Web Client","Back"};
         sel=demo_menu("Network Menu",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
@@ -168,7 +153,6 @@ void network_menu() {
                 break;
             case 4:
                 web_client();
-//                set_orientation(1-get_orientation());
                 break;
             case 5:
                 return;
@@ -179,9 +163,8 @@ void network_menu() {
 
 
 void app_main() {
-
+    // initialise button handling
     input_output_init();
-   
     // Initialize NVS
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -191,20 +174,16 @@ void app_main() {
         err = nvs_flash_init();
     }
     ESP_ERROR_CHECK( err );
-    // ===== Set time zone to NZST======
+    // ===== Set time zone to NZ time using custom daylight savings rule======
+    // if you are anywhere else in the world, this will need to be changed
     setenv("TZ", "NZST-12:00:00NZDT-13:00:00,M9.5.0,M4.1.0", 0);
     tzset();
-    //uint32_t user2=*((uint32_t *)0x3FF64024);
-    //if(user2!=0x70000000) is_emulator=1; 
-    // ==========================
-    time(&time_now);
-    tm_info = localtime(&time_now);
-
-
+    // initialise graphics and lcd display
     graphics_init();
     cls(0);
-    // Initialize the effect displayed
+    // Initialize the image wave
     if (DISPLAY_IMAGE_WAVE) image_wave_init();
+    // main menu
     int sel=0;
     while(1) {
         char *entries[]={"Graphics","Networking","Leds",

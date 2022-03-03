@@ -58,12 +58,10 @@ extern "C" {
 }
 #endif
 
-#if DEBUG_ESP32_DIGITAL_LED_LIB
-extern char * digitalLeds_debugBuffer;
-extern int digitalLeds_debugBufferSz;
-#endif
+#define USE_INTERRUPTS
+#define USE_LARGE_BLOCKS
 
-static DRAM_ATTR const uint16_t MAX_PULSES = 32;  // A channel has a 64 "pulse" buffer - we use half per pass
+static DRAM_ATTR uint16_t MAX_PULSES = 32;  // A channel has a 64 "pulse" buffer - we use half per pass
 static DRAM_ATTR const uint16_t DIVIDER    =  4;  // 8 still seems to work, but timings become marginal
 static DRAM_ATTR const uint16_t RMT_DURATION_NS = 50;  // Minimum time of a single RMT duration based on clock ns * DIVIDER
 
@@ -81,28 +79,9 @@ const ledParams_t ledParamsAll[] = {  // Still must match order of `led_types`
 };
 
 // LUT for mapping bits in RMT.int_<op>.ch<n>_tx_thr_event
-static DRAM_ATTR const uint32_t tx_thr_event_offsets [] = {
-  (uint32_t)(1 << 24),
-  (uint32_t)(1 << 25),
-  (uint32_t)(1 << 26),
-  (uint32_t)(1 << 27),
-  (uint32_t)(1 << 28),
-  (uint32_t)(1 << 29),
-  (uint32_t)(1 << 30),
-  (uint32_t)(1 << 31)
-};
 
-// LUT for mapping bits in RMT.int_<op>.ch<n>_tx_end
-static DRAM_ATTR const uint32_t tx_end_offsets [] = {
-  (uint32_t)(1 << 0),
-  (uint32_t)(1 << 3),
-  (uint32_t)(1 << 6),
-  (uint32_t)(1 << 9),
-  (uint32_t)(1 << 12),
-  (uint32_t)(1 << 15),
-  (uint32_t)(1 << 18),
-  (uint32_t)(1 << 21)
-};
+#define TX_THR_EVENT_OFFSET(x) (1<<(x+24))
+#define TX_END_OFFSET(x) (1<<(x*3))
 
 typedef union {
   struct {
@@ -117,7 +96,6 @@ typedef union {
 typedef struct {
   uint8_t * buf_data;
   uint16_t buf_pos, buf_len, buf_half, buf_isDirty;
-  //xSemaphoreHandle sem;
   rmtPulsePair pulsePairMap[2];
 } digitalLeds_stateData;
 
@@ -134,16 +112,17 @@ static void handleInterrupt(void *arg);
 
 int digitalLeds_initStrands(strand_t strands [], int numStrands)
 {
-  #if DEBUG_ESP32_DIGITAL_LED_LIB
-    snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz,
-             "%sdigitalLeds_init numStrands = %d\n", digitalLeds_debugBuffer, numStrands);
-  #endif
-
   localStrands = strands;
   localStrandCnt = numStrands;
   if (localStrandCnt < 1 || localStrandCnt > 8) {
     return -1;
   }
+#ifdef USE_LARGE_BLOCKS
+  if(numStrands==1)
+    MAX_PULSES=256; 
+  else 
+    MAX_PULSES=32;
+#endif
   DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_RMT_CLK_EN);
   DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_RMT_RST);
 
@@ -177,7 +156,7 @@ int digitalLeds_initStrands(strand_t strands [], int numStrands)
       (gpio_num_t)(pStrand->gpioNum));
   
     RMT.conf_ch[pStrand->rmtChannel].conf0.div_cnt = DIVIDER;
-    RMT.conf_ch[pStrand->rmtChannel].conf0.mem_size = 1;
+    RMT.conf_ch[pStrand->rmtChannel].conf0.mem_size = MAX_PULSES/32;
     RMT.conf_ch[pStrand->rmtChannel].conf0.carrier_en = 0;
     RMT.conf_ch[pStrand->rmtChannel].conf0.carrier_out_lv = 1;
     RMT.conf_ch[pStrand->rmtChannel].conf0.mem_pd = 0;
@@ -202,9 +181,9 @@ int digitalLeds_initStrands(strand_t strands [], int numStrands)
     pState->pulsePairMap[1].level1 = 0;
     pState->pulsePairMap[1].duration0 = ledParams.T1H / (RMT_DURATION_NS );
     pState->pulsePairMap[1].duration1 = ledParams.T1L / (RMT_DURATION_NS );
-
-    RMT.int_ena.val |= tx_thr_event_offsets[pStrand->rmtChannel];  // RMT.int_ena.ch<n>_tx_thr_event = 1;
-    RMT.int_ena.val |= tx_end_offsets[pStrand->rmtChannel];  // RMT.int_ena.ch<n>_tx_end = 1;
+#ifdef USE_INTERRUPTS
+    RMT.int_ena.val |= TX_THR_EVENT_OFFSET(pStrand->rmtChannel) | TX_END_OFFSET(pStrand->rmtChannel);  
+#endif
   }
   if(!gRmtSem)
     gRmtSem = xSemaphoreCreateBinary();
@@ -229,9 +208,9 @@ int IRAM_ATTR digitalLeds_updatePixels(strand_t * pStrand)
 {
   digitalLeds_stateData * pState = (digitalLeds_stateData*)(pStrand->_stateVars);
   ledParams_t ledParams = ledParamsAll[pStrand->ledType];
-
+#ifdef USE_INTERRUPTS
   xSemaphoreTake(gRmtSem, portMAX_DELAY);
-
+#endif
   // Pack pixels into transmission buffer
   if (ledParams.bytesPerPixel == 3) {
     for (uint16_t i = 0; i < pStrand->numPixels; i++) {
@@ -268,21 +247,23 @@ int IRAM_ATTR digitalLeds_updatePixels(strand_t * pStrand)
 
   if (pState->buf_pos < pState->buf_len) {
     // Fill the other half of the buffer block
-    #if DEBUG_ESP32_DIGITAL_LED_LIB
-      snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz,
-               "%s# ", digitalLeds_debugBuffer);
-    #endif
     copyToRmtBlock_half(pStrand);
   }
-
-  
-
   RMT.conf_ch[pStrand->rmtChannel].conf1.mem_rd_rst = 1;
   RMT.conf_ch[pStrand->rmtChannel].conf1.tx_start = 1;
 
+#ifdef USE_INTERRUPTS
   xSemaphoreTake(gRmtSem, portMAX_DELAY);
   xSemaphoreGive(gRmtSem);
+#else
+  while(!(RMT.int_raw.val & TX_END_OFFSET(pStrand->rmtChannel))) {
+    while(!(RMT.int_raw.val & TX_THR_EVENT_OFFSET(pStrand->rmtChannel)) && !(RMT.int_raw.val & TX_END_OFFSET(pStrand->rmtChannel))); 
+    copyToRmtBlock_half(pStrand);
+    RMT.int_clr.val |= TX_THR_EVENT_OFFSET(pStrand->rmtChannel);  // set RMT.int_clr.ch<n>_tx_thr_event
+  }
+  RMT.int_clr.val |= TX_END_OFFSET(pStrand->rmtChannel);
 
+#endif
   return 0;
 }
 
@@ -318,83 +299,44 @@ static IRAM_ATTR void copyToRmtBlock_half(strand_t * pStrand)
 
   for (i = 0; i < len; i++) {
     byteval = pState->buf_data[i + pState->buf_pos];
-
-    #if DEBUG_ESP32_DIGITAL_LED_LIB
-      snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz,
-               "%s%d(", digitalLeds_debugBuffer, byteval);
-    #endif
-
     // Shift bits out, MSB first, setting RMTMEM.chan[n].data32[x] to
     // the rmtPulsePair value corresponding to the buffered bit value
     for (j = 0; j < 8; j++, byteval <<= 1) {
       int bitval = (byteval >> 7) & 0x01;
       int data32_idx = i * 8 + offset + j;
       RMTMEM.chan[pStrand->rmtChannel].data32[data32_idx].val = pState->pulsePairMap[bitval].val;
-      #if DEBUG_ESP32_DIGITAL_LED_LIB
-        snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz,
-                 "%s%d", digitalLeds_debugBuffer, bitval);
-      #endif
     }
-    #if DEBUG_ESP32_DIGITAL_LED_LIB
-      snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz,
-               "%s) ", digitalLeds_debugBuffer);
-    #endif
-
     // Handle the reset bit by stretching duration1 for the final bit in the stream
     if (i + pState->buf_pos == pState->buf_len - 1) {
       RMTMEM.chan[pStrand->rmtChannel].data32[i * 8 + offset + 7].duration1 =
         ledParams.TRS / (RMT_DURATION_NS );
-      #if DEBUG_ESP32_DIGITAL_LED_LIB
-        snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz,
-                 "%sRESET ", digitalLeds_debugBuffer);
-      #endif
     }
   }
-
   // Clear the remainder of the channel's data not set above
   for (i *= 8; i < MAX_PULSES; i++) {
     RMTMEM.chan[pStrand->rmtChannel].data32[i + offset].val = 0;
   }
-  
   pState->buf_pos += len;
-
-  #if DEBUG_ESP32_DIGITAL_LED_LIB
-    snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz,
-             "%s ", digitalLeds_debugBuffer);
-  #endif
-
   return;
 }
 
 static IRAM_ATTR void handleInterrupt(void *arg)
 {
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-
-  #if DEBUG_ESP32_DIGITAL_LED_LIB
-    snprintf(digitalLeds_debugBuffer, digitalLeds_debugBufferSz,
-             "%sRMT.int_st.val = %08x\n", digitalLeds_debugBuffer, RMT.int_st.val);
-  #endif
-
   for (int i = 0; i < localStrandCnt; i++) {
     strand_t * pStrand = &localStrands[i];
-    //digitalLeds_stateData * pState = (digitalLeds_stateData*)(pStrand->_stateVars);
-
-    if (RMT.int_st.val & tx_thr_event_offsets[pStrand->rmtChannel])
-    {  // tests RMT.int_st.ch<n>_tx_thr_event
+    if (RMT.int_st.val & TX_THR_EVENT_OFFSET(pStrand->rmtChannel)) {  // tests RMT.int_st.ch<n>_tx_thr_event
       copyToRmtBlock_half(pStrand);
-      RMT.int_clr.val |= tx_thr_event_offsets[pStrand->rmtChannel];  // set RMT.int_clr.ch<n>_tx_thr_event
+      RMT.int_clr.val |= TX_THR_EVENT_OFFSET(pStrand->rmtChannel);  // set RMT.int_clr.ch<n>_tx_thr_event
     }
-    else if (RMT.int_st.val & tx_end_offsets[pStrand->rmtChannel] && gRmtSem)
-    {  // tests RMT.int_st.ch<n>_tx_end and semaphore
+    else if (RMT.int_st.val & TX_END_OFFSET(pStrand->rmtChannel) && gRmtSem) {  // tests RMT.int_st.ch<n>_tx_end and semaphore
       xSemaphoreGiveFromISR(gRmtSem, &xHigherPriorityTaskWoken);
-      RMT.int_clr.val |= tx_end_offsets[pStrand->rmtChannel];  // set RMT.int_clr.ch<n>_tx_end 
-      if (xHigherPriorityTaskWoken == pdTRUE)
-      {
+      RMT.int_clr.val |= TX_END_OFFSET(pStrand->rmtChannel);  // set RMT.int_clr.ch<n>_tx_end 
+      if (xHigherPriorityTaskWoken == pdTRUE) {
           portYIELD_FROM_ISR();
       }
     }
   }
-
   return;
 }
 

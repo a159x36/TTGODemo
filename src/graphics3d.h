@@ -84,6 +84,6 @@ static inline float dot(vec3f p0,vec3f p1) {
     return ((p0.x*p1.x))+((p0.y*p1.y))+((p0.z*p1.z));
 }
 
-void draw_teapot(vec2 pos, float size, vec3f rot, colourtype col);
-void draw_cube(vec2 pos, float size, vec3f rot);
+void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col);
+void draw_cube(vec2f pos, float size, vec3f rot);
 #endif

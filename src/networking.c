@@ -20,7 +20,6 @@
 #include "demos.h"
 #include "lwip/sockets.h"
 #include <esp_http_server.h>
-#include "esp_eth.h"
 #include "mqtt_client.h"
 #include "FreeSansBold24pt7b.h"
 #include <driver/touch_pad.h>
@@ -37,12 +36,10 @@ char network_event[64];
 #define TAG "Networking"
 int bg_col=0;
 esp_netif_t *network_interface = NULL;
-esp_eth_handle_t eth_handle = NULL;
-void *glue = NULL;
+
 void set_event_message(const char *s) {
     snprintf(network_event,sizeof(network_event),"%s\n",s);
 }
-
 
 mqtt_callback_type mqtt_callback=0;
 
@@ -100,34 +97,6 @@ void event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
-void init_eth() {
-    esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
-    if(network_interface==NULL) {
-        esp_netif_init();
-        network_event_group = xEventGroupCreate();
-        ESP_ERROR_CHECK(esp_event_loop_create_default());
-        network_interface = esp_netif_new(&cfg);// &netif_config);
-        // Set default handlers to process TCP/IP stuffs
-        ESP_ERROR_CHECK(esp_eth_set_default_handlers(network_interface));
-        // Register user defined event handers
-        ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID,
-                                                &event_handler, NULL));
-        ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID,
-                                                &event_handler, NULL));
-        eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
-        eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
-        esp_eth_mac_t *mac = esp_eth_mac_new_openeth(&mac_config);
-        esp_eth_phy_t *phy = esp_eth_phy_new_dp83848(&phy_config);
-        esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
-
-        ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle));
-        glue=esp_eth_new_netif_glue(eth_handle);
-        ESP_ERROR_CHECK(esp_netif_attach(network_interface, glue));
-        /* start Ethernet driver state machine */
-        ESP_ERROR_CHECK(esp_eth_start(eth_handle));
-    }
-    return;
-}
 extern char *main_page_html;
 
 esp_err_t get_handler(httpd_req_t *req)
@@ -150,7 +119,6 @@ void webserver(void) {
     init_wifi(ACCESS_POINT);
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    //config.lru_purge_enable = true;
     config.uri_match_fn = httpd_uri_match_wildcard;
     // Start the httpd server
     ESP_LOGI(TAG, "Starting server on port: '%d'", config.server_port);
@@ -176,8 +144,7 @@ void webserver(void) {
 
 QueueHandle_t imageQueue=NULL;
 
-esp_err_t http_event_handler(esp_http_client_event_t *evt)
-{
+esp_err_t http_event_handler(esp_http_client_event_t *evt) {
     ESP_LOGI(TAG, "http event %d",(evt->event_id));
     if(evt->event_id==HTTP_EVENT_ON_DATA) {
         char *data=(char *)(evt->data);
@@ -254,7 +221,6 @@ void web_client(void) {
     while(get_input()!=RIGHT_DOWN) vTaskDelay(100);
 }
 
-
 esp_mqtt_client_handle_t mqtt_client = NULL;
 
 void mqtt_connect(mqtt_callback_type callback) {
@@ -280,7 +246,6 @@ void mqtt_disconnect() {
         mqtt_callback=NULL;
     }
 }
-
 
 static void my_mqtt_callback(int event_id, void *event_data) {
     esp_mqtt_event_handle_t event = event_data;
@@ -333,6 +298,8 @@ void mqtt() {
 void time_demo() {
     wifi_connect(1);
     int sntp_status=0;
+    time_t time_now;
+    struct tm *tm_info;
     do {
         cls(0);
         setFont(FONT_DEJAVU18);
