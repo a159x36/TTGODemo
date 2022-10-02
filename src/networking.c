@@ -319,11 +319,9 @@ void time_demo() {
             time(&time_now);
             tm_info = localtime(&time_now);
             setFont(FreeSansBold24pt7b);
-            struct timeval tv_now;
-            gettimeofday(&tv_now, NULL);
             if(tm_info->tm_year < (2016 - 1900) )
                 setFontColour(255,0,0);
-                else
+            else
                 setFontColour(0,255,0);
             gprintf("\n%2d:%02d:%02d", tm_info->tm_hour,
                  tm_info->tm_min, tm_info->tm_sec);
