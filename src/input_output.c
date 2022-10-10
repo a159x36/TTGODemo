@@ -300,7 +300,7 @@ void get_string(char *title, char *string, int len) {
                 case 4:
                 if(key_val==DEL_KEY)
                     string[maxval((int)strlen(string)-1,0)]=0;
-                else if(key_val==DEL_KEY)
+                else if(key_val==SHIFT_KEY)
                     alt=1-alt;
                 else if(key_val==ENTER_KEY)
                     return;
