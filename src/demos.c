@@ -596,7 +596,7 @@ void led_cube(void) {
 
 void led_circles(void) {
     float xo=7.5,yo=7.5;
-    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 128, .numPixels = 256},};
+    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 16, .numPixels = 256},};
     strand_t *pStrand= &STRANDS[0];
     gpio_set_direction(17, GPIO_MODE_OUTPUT);
     digitalLeds_initStrands(pStrand, 1);

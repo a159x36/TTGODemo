@@ -27,8 +27,7 @@ static int prev_frame = -1;
 // Instead of calculating the offsets for each pixel we grab, we pre-calculate
 // the valueswhenever a frame changes, then re-use these as we go through all
 // the pixels in the frame. This is much, much faster.
-static int8_t xofs[240], yofs[240];
-static int8_t xcomp[240], ycomp[240];
+
 
 // Calculate the pixel data for a set of lines (with implied line size of 320).
 // Pixels go in dest, line is the Y-coordinate of the first line to be
@@ -36,6 +35,8 @@ static int8_t xcomp[240], ycomp[240];
 // one every time the entire image is displayed; this is used to go to the next
 // frame of animation.
 void image_wave_calc_lines(uint16_t *dest, int line, int frame, int linect) {
+    int16_t xofs[240], yofs[240];
+    int16_t xcomp[240], ycomp[240];
     int mag = (sin(frame * 0.02) + 1.8) * 256;
     if (frame != prev_frame) {
         // We need to calculate a new set of offset coefficients. Take some

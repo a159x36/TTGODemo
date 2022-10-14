@@ -15,10 +15,10 @@ vec3f rotation={PI/2-0.2,0,0};
 vec2f position={0,0};
 colourtype ambiant={16,16,16};
 colourtype diffuse={20,220,40};
-typedef  struct {uint8_t p[8]; uint16_t col; int16_t z;} quadtype;
+typedef  struct {uint16_t p[8]; uint16_t col; int16_t z;} quadtype;
 #define MAXQUADS 24*32
 int nquads;
-quadtype quads[MAXQUADS];
+static quadtype quads[MAXQUADS];
 
 inline int clamp(int x,int min,int max) {
     const int t = x < min ? min : x;
