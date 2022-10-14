@@ -19,7 +19,7 @@
 #include <nvs_flash.h>
 #include <time.h>
 #include "input_output.h"
-#include "esp32_digital_led_lib.h"
+#include "rgb_led.h"
 #include "networking.h"
 #include <mqtt_client.h>
 
