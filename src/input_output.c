@@ -24,7 +24,14 @@
 #include <nvs_flash.h>
 
 
+
+#ifdef TTGO_S3
+const int RIGHT_BUTTON=14;
+const int TOUCH_PADS[4]={1,2,12,13};
+#else
+const int RIGHT_BUTTON=35;
 const int TOUCH_PADS[4]={2,3,9,8};
+#endif
 
 // for button inputs
 QueueHandle_t inputQueue;
@@ -40,7 +47,7 @@ static void repeatTimerCallback(xTimerHandle pxTimer) {
         xQueueSendFromISR(inputQueue,&v,0);
     }
     if(button_val[1]==0) {
-        v=35;
+        v=RIGHT_BUTTON;
         xQueueSendFromISR(inputQueue,&v,0);
     }
     xTimerChangePeriod( repeatTimer, pdMS_TO_TICKS(200), 0);
@@ -51,7 +58,7 @@ static void repeatTimerCallback(xTimerHandle pxTimer) {
 static void IRAM_ATTR gpio_isr_handler(void* arg)
 {
     uint32_t gpio_num = (uint32_t) arg;
-    int gpio_index=(gpio_num==35);
+    int gpio_index=(gpio_num==RIGHT_BUTTON);
     int val=(1-button_val[gpio_index]);
 
     uint64_t time=esp_timer_get_time();
@@ -86,9 +93,9 @@ key_type get_input() {
         return NO_KEY;
     switch(key) {
         case 0: return LEFT_DOWN;
-        case 35: return RIGHT_DOWN;
+        case RIGHT_BUTTON: return RIGHT_DOWN;
         case 100: return LEFT_UP;
-        case 135: return RIGHT_UP;
+        case 100+RIGHT_BUTTON: return RIGHT_UP;
     }
     return NO_KEY;
 }
@@ -104,7 +111,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
     int bx=83,by=57;
     int vbx=1,vby=1;
     vec3f rotation={PI/2-0.2,0,0};
-    float teapot_size=20;
+    float teapot_size=(20*REAL_DISPLAY_HEIGHT)/135;
     colourtype diffuse={20,220,40};
     vec2f pos;
     int frame=0;
@@ -144,9 +151,10 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
             setFontColour(255, 255, 255);
             print_xy("\x86",display_width-16,display_height-16); // down arrow 
         }
+        #ifdef TOUCH_PADS
         for (int i = 0; i <4; i++) {
             uint16_t touch_value;
-            touch_pad_read(TOUCH_PADS[i], &touch_value);
+            touch_pad_read_raw_data(TOUCH_PADS[i], &touch_value);
             if(touch_value<1000) {
                 int x=(i%2*120);
                 int y=i>1?0:130;
@@ -156,6 +164,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
                     draw_rectangle(x,y,120,5,rgbToColour(200,200,255)); 
             }
         }
+        #endif
         flip_frame();
         current_time = esp_timer_get_time();
         if ((frame++ % 10) == 0) {
@@ -177,18 +186,20 @@ void input_output_init() {
     repeatTimer = xTimerCreate("repeat", pdMS_TO_TICKS(300),pdFALSE,(void*)0, repeatTimerCallback);
         // interrupts for button presses
     gpio_set_direction(0, GPIO_MODE_INPUT);
-    gpio_set_direction(35, GPIO_MODE_INPUT);
+    gpio_set_direction(RIGHT_BUTTON, GPIO_MODE_INPUT);
     gpio_set_intr_type(0, GPIO_INTR_LOW_LEVEL);
-    gpio_set_intr_type(35, GPIO_INTR_LOW_LEVEL);
+    gpio_set_intr_type(RIGHT_BUTTON, GPIO_INTR_LOW_LEVEL);
     gpio_install_isr_service(0);
     gpio_isr_handler_add(0, gpio_isr_handler, (void*) 0);
-    gpio_isr_handler_add(35, gpio_isr_handler, (void*) 35);
+    gpio_isr_handler_add(RIGHT_BUTTON, gpio_isr_handler, (void*) RIGHT_BUTTON);
+#ifdef TOUCH_PADS
     touch_pad_init();
     touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
     touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_1V);
     for (int i = 0;i< 4;i++) {
-        touch_pad_config(TOUCH_PADS[i], 0);
+        touch_pad_config(TOUCH_PADS[i],0);
     }
+#endif
 }
 
 static uint16_t touch_values[4];
@@ -196,13 +207,15 @@ static uint64_t touch_time=0;
 static uint64_t delay=400000;
 
 vec2 get_touchpads() {
+vec2 xy = {0, 0};
+#ifdef TOUCH_PADS
     const int TOUCH_PADS[4] = {2, 3, 9, 8};
-    vec2 xy = {0, 0};
+    
     uint64_t currenttime = esp_timer_get_time();
     uint64_t timesince = currenttime - touch_time;
     for (int i = 0; i < 4; i++) {
         uint16_t touch_value;
-        touch_pad_read(TOUCH_PADS[i], &touch_value);
+        touch_pad_read_filtered(TOUCH_PADS[i], &touch_value);
         if (touch_value < 1000 &&
             (touch_values[i] >= 1000 || timesince > delay)) {
             if ((i / 2) == 0) {
@@ -224,6 +237,7 @@ vec2 get_touchpads() {
         }
         touch_values[i] = touch_value;
     }
+#endif
     return xy;
 }
 

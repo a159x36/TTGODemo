@@ -256,8 +256,8 @@ void bubble_demo() {
     ball.yvel=0.6;
     ball.xvel=0.7;
     obj bat;
-    bat.x=110;
-    bat.y=235;
+    bat.x=display_width/2-10;
+    bat.y=display_height-5;
     bat.w=20;
     bat.h=5;
     int score=0;
@@ -348,7 +348,7 @@ void bubble_demo() {
         }
         if(keys[1]==0) {
             bat.x+=2*dt;
-            if(bat.x>134-bat.w) bat.x=(134-20);
+            if(bat.x>display_width-bat.w-1) bat.x=(display_width-1-20);
         }
         flip_frame();
         showfps();

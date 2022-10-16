@@ -35,8 +35,8 @@ static int prev_frame = -1;
 // one every time the entire image is displayed; this is used to go to the next
 // frame of animation.
 void image_wave_calc_lines(uint16_t *dest, int line, int frame, int linect) {
-    int16_t xofs[240], yofs[240];
-    int16_t xcomp[240], ycomp[240];
+    int16_t xofs[display_width], yofs[display_width];
+    int16_t xcomp[display_width], ycomp[display_width];
     int mag = (sin(frame * 0.02) + 1.8) * 256;
     if (frame != prev_frame) {
         // We need to calculate a new set of offset coefficients. Take some

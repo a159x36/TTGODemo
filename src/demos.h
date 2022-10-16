@@ -23,7 +23,7 @@ void led_cube(void);
 #define ARRAY_LENGTH(array) (sizeof((array))/sizeof((array)[0]))
 
 #define USE_WIFI 1
-#define DISPLAY_VOLTAGE 1
+#define DISPLAY_VOLTAGE 0
 #define DISPLAY_IMAGE_WAVE 1
 
 extern time_t time_now;

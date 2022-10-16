@@ -51,7 +51,7 @@ void draw_triangle_3d(vec3f p0, vec3f p1, vec3f p2, uint16_t colour) {
 }
 
 
-inline void maketrotationmatrix() {
+void maketrotationmatrix() {
     float ca=cos(rotation.x);
     float cb=cos(rotation.y);
     float cc=cos(rotation.z);
@@ -107,7 +107,7 @@ void draw_all_quads() {
     }
 }
 
-inline vec3f vrotate(vec3f v, float f0, float f1, float f2) {
+vec3f vrotate(vec3f v, float f0, float f1, float f2) {
     v.x=v.x*f0;
     v.y=v.y*f1;
     v.z=(v.z-2.0)*f2;
