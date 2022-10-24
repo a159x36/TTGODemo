@@ -131,19 +131,20 @@ void spaceship_demo() {
 void image_wave_demo() {
     char buff[128];
     int frame = 0;
+    //sp_adc_cal_characteristics_t adc_chars;
     // voltage reference calibration for Battery ADC
     uint32_t vref;  
     if (DISPLAY_VOLTAGE) {
-        gpio_set_direction(34, GPIO_MODE_INPUT);
+        gpio_set_direction(VOLTAGE_GPIO, GPIO_MODE_INPUT);
         // Configure ADC
         adc1_config_width(ADC_WIDTH_BIT_12);
-        // GPIO34 ADC1 CHANNEL 6
-        adc1_config_channel_atten(ADC1_CHANNEL_6, ADC_ATTEN_DB_11);
-        esp_adc_cal_characteristics_t adc_chars;
-        esp_adc_cal_characterize(
-            (adc_unit_t)ADC_UNIT_1, (adc_atten_t)ADC1_CHANNEL_6,
-            (adc_bits_width_t)ADC_WIDTH_BIT_12, 1100, &adc_chars);
-        vref = adc_chars.vref;
+        // Correct adc channel for gpio
+        adc1_config_channel_atten(VOLTAGE_ADC, ADC_ATTEN_DB_11);
+    //    esp_adc_cal_characteristics_t adc_chars;
+    //    esp_adc_cal_characterize(
+    //        (adc_unit_t)ADC_UNIT_1, (adc_atten_t)ADC_ATTEN_DB_11,
+    //        (adc_bits_width_t)ADC_WIDTH_BIT_12, 1100, &adc_chars);
+        vref = 1100;//adc_chars.vref;
     }
     while (1) {
         frame++;
@@ -152,10 +153,10 @@ void image_wave_demo() {
         setFont(FONT_DEJAVU24);
         if (DISPLAY_VOLTAGE) {
             setFontColour(20, 0, 200);
-            uint32_t raw = adc1_get_raw((adc1_channel_t)ADC1_CHANNEL_6);
-            float battery_voltage =
-                ((float)raw / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
-            snprintf(buff, 128, "%.2fV", battery_voltage);
+            uint32_t raw = adc1_get_raw((adc1_channel_t)VOLTAGE_ADC);
+          //  int v=esp_adc_cal_raw_to_voltage(raw, &adc_chars);
+            float battery_voltage = ((float)raw / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
+            snprintf(buff, 128, "%.2fV %d", battery_voltage, raw);
             setFontColour(0, 0, 0);
             print_xy(buff, 12, 12);
             setFontColour(20, 200, 200);
@@ -291,7 +292,7 @@ void bubble_demo() {
         ball.yvel-=2.0/16;
         ball.x+=ball.xvel*dt;
         ball.y-=ball.yvel*dt;
-        if((ball.x)>(134-ball.w/2) || ball.x<ball.w/2) {
+        if((ball.x)>(display_width-ball.w/2) || ball.x<ball.w/2) {
             ball.xvel=-ball.xvel;
             ball.x+=ball.xvel*dt;
         }
@@ -339,7 +340,7 @@ void bubble_demo() {
             case NO_KEY: break;
         }
 
-        if(ball.y>343) {
+        if(ball.y>display_height+10) {
             break;
         }
         if(keys[0]==0) {

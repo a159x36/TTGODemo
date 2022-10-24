@@ -86,7 +86,7 @@ int show_menu(int key) {
     if(menu_no==0)
         print_xy("Menu",0,0);
     else
-        print_xy(menus[0][menu_no],0,0);
+        print_xy((char *)(menus[0][menu_no]),0,0);
     setFontColour(255,255,255);
     print_xy("",0,116);
     gprintf("Boids=%d Spheres=%d Cohesion=%.2f\n\
@@ -96,7 +96,7 @@ Alignment=%.2f Separation=%.2f Predators=%d", \
     int entries=0;
     while(menus[menu_no][entries]) entries++;
     for(int i=0;i<entries;i++)
-        print_xy(menus[menu_no][i],0,i*9+9);
+        print_xy((char *)(menus[menu_no][i]),0,i*9+9);
     if(key==LEFT_DOWN)
         sel=(sel+1)%entries;
     if(key==RIGHT_DOWN) {

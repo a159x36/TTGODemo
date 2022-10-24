@@ -31,8 +31,8 @@ inline float clampf(float x,float min,float max) {
 }
 
 inline vec2 point3d_to_xy(vec3f p) {
-    return (vec2){clamp((int)p.x,0,display_width),
-                  clamp((int)p.y,0,display_height)};
+    return (vec2){clamp((int)p.x,0,display_width-1),
+                  clamp((int)p.y,0,display_height-1)};
 }
 
 void draw_line_3d(vec3f p0, vec3f p1, uint16_t colour) {
@@ -52,12 +52,12 @@ void draw_triangle_3d(vec3f p0, vec3f p1, vec3f p2, uint16_t colour) {
 
 
 void maketrotationmatrix() {
-    float ca=cos(rotation.x);
-    float cb=cos(rotation.y);
-    float cc=cos(rotation.z);
-    float sa=sin(rotation.x);
-    float sb=sin(rotation.y);
-    float sc=sin(rotation.z);
+    float ca=cosf(rotation.x);
+    float cb=cosf(rotation.y);
+    float cc=cosf(rotation.z);
+    float sa=sinf(rotation.x);
+    float sb=sinf(rotation.y);
+    float sc=sinf(rotation.z);
 
     rmx[0][0]=cc*cb;
     rmx[0][1]=cc*sb*sa-sc*ca;
