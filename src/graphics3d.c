@@ -9,9 +9,7 @@
 #include <freertos/task.h>
 
 vec3f lightdir={0.577f,-0.577f,0.577f};
-//float teapot_size=20;
 float rmx[3][3];
-vec3f rotation={PI/2-0.2,0,0};
 vec2f position={0,0};
 vec3f ambiant_colour={0.2,0.2,0.2};
 vec3f teapot_colour={20,220,40};
@@ -54,7 +52,8 @@ void draw_triangle_3d(vec3f p0, vec3f p1, vec3f p2, uint16_t colour) {
 }
 
 
-void maketrotationmatrix() {
+void maketrotationmatrix(vec3f rotation, vec2f pos, float size) {
+    position=pos;
     float ca=cosf(rotation.x);
     float cb=cosf(rotation.y);
     float cc=cosf(rotation.z);
@@ -62,20 +61,17 @@ void maketrotationmatrix() {
     float sb=sinf(rotation.y);
     float sc=sinf(rotation.z);
 
-    rmx[0][0]=cc*cb;
-    rmx[0][1]=cc*sb*sa-sc*ca;
-    rmx[0][2]=cc*sb*ca+sc*sa;
-    rmx[1][0]=sc*cb;
-    rmx[1][1]=sc*sb*sa+cc*ca;
-    rmx[1][2]=sc*sb*ca-cc*sa;
-    rmx[2][0]=-sb;
-    rmx[2][1]=cb*sa;
-    rmx[2][2]=cb*ca;
+    rmx[0][0]=cc*cb*size;
+    rmx[0][1]=(cc*sb*sa-sc*ca)*size;
+    rmx[0][2]=(cc*sb*ca+sc*sa)*size;
+    rmx[1][0]=sc*cb*size;
+    rmx[1][1]=(sc*sb*sa+cc*ca)*size;
+    rmx[1][2]=(sc*sb*ca-cc*sa)*size;
+    rmx[2][0]=-sb*size;
+    rmx[2][1]=cb*sa*size;
+    rmx[2][2]=cb*ca*size;
 }
-vec3f reflect(vec3f incidentVec, vec3f normal) {
-    float d=2.0f*dot(incidentVec, normal);
-    return (vec3f) {incidentVec.x-d*normal.x,incidentVec.y-d*normal.y,incidentVec.z-d*normal.z};
-}
+
 void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     if(p0.x<0 && p1.x<0 && p2.x<0 && p3.x<0) return;
     if(p0.y<0 && p1.y<0 && p2.y<0 && p3.y<0) return;
@@ -88,7 +84,7 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     float dp=dot(normal,lightdir);
     float diff=clampf(dp,0,1.0);
     vec3f diffuse=mul3df(diff,diffuse_colour);
-    float spec=clampf(2.0f*dp*normal.z-lightdir.z,0,1);
+    float spec=clampf(2.0f*dp*normal.z-lightdir.z,0,2);
     spec=spec*spec;
     spec=spec*spec;
     spec=specularstrength*spec;
@@ -97,13 +93,8 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     vec3f res=mul3d(add3d(ambiant_colour,add3d(diffuse,specular)),teapot_colour);
 
     uint16_t colour=rgbToColour(clampf(res.x,0,255),clampf(res.y,0,255),clampf(res.z,0,255));
- 
-    vec2 a,b,c,d;
-    a=point3d_to_xy(p0);
-    b=point3d_to_xy(p1);
-    c=point3d_to_xy(p2);
-    d=point3d_to_xy(p3);
-    quads[nquads++]=(quadtype){{a.x,a.y,b.x,b.y,c.x,c.y,d.x,d.y},
+
+    quads[nquads++]=(quadtype){{p0.x,p0.y,p1.x,p1.y,p2.x,p2.y,p3.x,p3.y},
                         colour,(int16_t)((p0.z+p1.z+p2.z+p3.z)*64)};
 }
 
@@ -124,10 +115,8 @@ void draw_all_quads() {
     }
 }
 
-vec3f vrotate(vec3f v, float f0, float f1, float f2) {
-    v.x=v.x*f0;
-    v.y=v.y*f1;
-    v.z=(v.z-2.0)*f2;
+vec3f vrotate(vec3f v) {
+    v.z=(v.z-2.0);
     return (vec3f){ (rmx[0][0]*v.x+rmx[0][1]*v.y+rmx[0][2]*v.z)+position.x,
                     (rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z)+position.y,
                     (rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z)};
@@ -163,10 +152,7 @@ void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
     static vec3f np[7][7];
     static vec3f p[4][4];
     teapot_colour=(vec3f){col.r,col.g,col.b};
-    rotation=rot;
-    position=pos;
-    //teapot_size=size;
-    maketrotationmatrix();
+    maketrotationmatrix(rot,pos,size);
 
     // the teapot is made from 32 patches as follows:
     // 28-32=base
@@ -180,7 +166,7 @@ void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
     for(int ii=0;ii<32;ii++) {
         for(int j=0;j<4;j++) {
             for(int k=0;k<4; k++) {
-                p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1],size,size,size);
+                p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1]);
             }
         }
         bezier(p,np);
@@ -204,10 +190,8 @@ const uint8_t cubeQuads[][4] = {
 
 void draw_cube(vec2f pos, float size, vec3f rot) {
     colourtype col;
-    rotation=rot;
-    position=pos;
     nquads=0;
-    maketrotationmatrix();
+    maketrotationmatrix(rot,pos,size);
     for(int q=0;q<6;q++) {
         vec3f quad[4];
         for(int i=0;i<4;i++) {
@@ -215,7 +199,7 @@ void draw_cube(vec2f pos, float size, vec3f rot) {
             quad[i].x=(v&4)?1.0:-1.0;
             quad[i].y=(v&2)?1.0:-1.0;
             quad[i].z=(v&1)?3.0:1.0;
-            quad[i]=vrotate(quad[i],size,size,size);
+            quad[i]=vrotate(quad[i]);
         }
         col.r=((q+1)&1)*255;
         col.g=(((q+1)>>1)&1)*255;
