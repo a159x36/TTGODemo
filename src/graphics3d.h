@@ -15,6 +15,13 @@ static inline vec3f add3d(vec3f p0, vec3f p1) {
     return (vec3f){p0.x+p1.x, p0.y+p1.y, p0.z+p1.z};
 }
 
+static inline vec3f mul3d(vec3f p0,vec3f p1) {
+    return (vec3f){p0.x*p1.x,p0.y*p1.y,p0.z*p1.z};
+}
+
+static inline vec3f mul3df(float f,vec3f p1) {
+    return (vec3f){f*p1.x,f*p1.y,f*p1.z};
+}
 
 static inline vec2f sub2d(vec2f p0, vec2f p1) {
     return (vec2f){p0.x-p1.x, p0.y-p1.y};

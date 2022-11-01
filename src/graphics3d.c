@@ -8,13 +8,16 @@
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
 
-vec3f lightpos={0,0,0.7};
+vec3f lightdir={0.577f,-0.577f,0.577f};
 //float teapot_size=20;
 float rmx[3][3];
 vec3f rotation={PI/2-0.2,0,0};
 vec2f position={0,0};
-colourtype ambiant={16,16,16};
-colourtype diffuse={20,220,40};
+vec3f ambiant_colour={0.2,0.2,0.2};
+vec3f teapot_colour={20,220,40};
+vec3f diffuse_colour={0.5,0.5,0.5};
+vec3f light_colour={1.0,1.0,1.0};
+const float specularstrength=0.5f;
 typedef  struct {uint16_t p[8]; uint16_t col; int16_t z;} quadtype;
 #define MAXQUADS 24*32
 int nquads;
@@ -69,18 +72,32 @@ void maketrotationmatrix() {
     rmx[2][1]=cb*sa;
     rmx[2][2]=cb*ca;
 }
-
+vec3f reflect(vec3f incidentVec, vec3f normal) {
+    float d=2.0f*dot(incidentVec, normal);
+    return (vec3f) {incidentVec.x-d*normal.x,incidentVec.y-d*normal.y,incidentVec.z-d*normal.z};
+}
 void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
-    
+    if(p0.x<0 && p1.x<0 && p2.x<0 && p3.x<0) return;
+    if(p0.y<0 && p1.y<0 && p2.y<0 && p3.y<0) return;
+    if(p0.x>display_width && p1.x>display_width && p2.x>display_width && p3.x>display_width) return;
+    if(p0.y>display_height && p1.y>display_height && p2.y>display_height && p3.y>display_height) return;
     vec3f normal=cross3d(sub3d(p2,p0),sub3d(p3,p0));
     if(normal.z<=0) return;
     normal=normalise(normal);
     if(nquads>=MAXQUADS) return;
-    float light=clampf(dot(normal,lightpos),0,1.0);
+    float dp=dot(normal,lightdir);
+    float diff=clampf(dp,0,1.0);
+    vec3f diffuse=mul3df(diff,diffuse_colour);
+    float spec=clampf(2.0f*dp*normal.z-lightdir.z,0,1);
+    spec=spec*spec;
+    spec=spec*spec;
+    spec=specularstrength*spec;
+    vec3f specular=mul3df(spec,light_colour);
 
-    uint16_t colour=rgbToColour(clamp(((int)(diffuse.r*light))+ambiant.r,0,255),
-                    clamp((int)(diffuse.g*light)+ambiant.g,0,255),
-                    clamp((int)(diffuse.b*light)+ambiant.b,0,255));
+    vec3f res=mul3d(add3d(ambiant_colour,add3d(diffuse,specular)),teapot_colour);
+
+    uint16_t colour=rgbToColour(clampf(res.x,0,255),clampf(res.y,0,255),clampf(res.z,0,255));
+ 
     vec2 a,b,c,d;
     a=point3d_to_xy(p0);
     b=point3d_to_xy(p1);
@@ -145,7 +162,7 @@ void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
 
     static vec3f np[7][7];
     static vec3f p[4][4];
-    diffuse=col;
+    teapot_colour=(vec3f){col.r,col.g,col.b};
     rotation=rot;
     position=pos;
     //teapot_size=size;
@@ -203,7 +220,7 @@ void draw_cube(vec2f pos, float size, vec3f rot) {
         col.r=((q+1)&1)*255;
         col.g=(((q+1)>>1)&1)*255;
         col.b=(((q+1)>>2)&1)*255;
-        diffuse=col;
+        teapot_colour=(vec3f){col.r,col.g,col.b};
         add_quad(quad[0],quad[1],quad[2],quad[3]);
     }
     draw_all_quads();

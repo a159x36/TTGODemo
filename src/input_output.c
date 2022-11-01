@@ -171,12 +171,12 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
         #ifdef SHOW_TOUCH_PADS
         for (int i = 0; i <4; i++) {
             if(read_touch(TOUCH_PADS[i])) {
-                int x=(i%2*120);
-                int y=i>1?0:130;
+                int x=(i%2*REAL_DISPLAY_WIDTH/2);
+                int y=i>1?0:REAL_DISPLAY_HEIGHT-5;
                 if(get_orientation())  
-                    draw_rectangle(130-y,x,5,120,rgbToColour(200,200,255));
+                    draw_rectangle(REAL_DISPLAY_HEIGHT-5-y,x,5,REAL_DISPLAY_WIDTH/2,rgbToColour(200,200,255));
                 else 
-                    draw_rectangle(x,y,120,5,rgbToColour(200,200,255)); 
+                    draw_rectangle(x,y,REAL_DISPLAY_WIDTH/2,5,rgbToColour(200,200,255)); 
             }
         }
         #endif
@@ -186,8 +186,9 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
             printf("FPS:%f %d %d\n", 1.0e6 / (current_time - last_time),
                 heap_caps_get_free_size(MALLOC_CAP_DMA),
                 heap_caps_get_free_size(MALLOC_CAP_32BIT));
-            vTaskDelay(1);
+            //vTaskDelay(1);
         }
+       // vTaskDelay(2);
         last_time = current_time;
         key_type key=get_input();
         if(key==LEFT_DOWN) select=(select+1)%nentries;
@@ -232,7 +233,7 @@ static uint64_t delay=400000;
 vec2 get_touchpads() {
 vec2 xy = {0, 0};
 #ifdef SHOW_TOUCH_PADS
-    const int TOUCH_PADS[4] = {2, 3, 9, 8};
+    //const int TOUCH_PADS[4] = {2, 3, 9, 8};
     
     uint64_t currenttime = esp_timer_get_time();
     uint64_t timesince = currenttime - touch_time;
