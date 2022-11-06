@@ -39,6 +39,10 @@ static inline float mag2d(vec2f p) {
     return (p.x*p.x+p.y*p.y);
 }
 
+static inline float mag3d(vec3f p) {
+    return (p.x*p.x+p.y*p.y+p.z*p.z);
+}
+
 static inline float dot2d(vec2f p0, vec2f p1) {
     return (p0.x*p1.x+p0.y*p1.y);
 }

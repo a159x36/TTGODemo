@@ -11,9 +11,8 @@
 vec3f lightdir={0.577f,-0.577f,0.577f};
 float rmx[3][3];
 vec2f position={0,0};
-vec3f ambiant_colour={40,20,20};//{0.2,0.2,0.2};
-vec3f teapot_colour={20,220,40};
-//vec3f diffuse_colour={0.5,0.5,0.5};
+vec3f ambiant_colour={20,20,20};//{0.2,0.2,0.2};
+vec3f material_colour={20,220,40};
 vec3f light_colour={255,255,255};//{1.0,1.0,1.0};
 const float specularstrength=0.5f;
 typedef  struct {uint16_t p[8]; uint16_t col; int16_t z;} quadtype;
@@ -83,18 +82,14 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     if(nquads>=MAXQUADS) return;
     float dp=dot(normal,lightdir);
     float diff=clampf(dp,0,1.0);
-    vec3f diffuse=mul3df(diff,teapot_colour);
+    vec3f diffuse=mul3df(diff,material_colour);
     float spec=clampf(2.0f*dp*normal.z-lightdir.z,0,2);
     spec=spec*spec;
     spec=spec*spec;
     spec=spec*spec;
-  //  spec=spec*spec;
     spec=specularstrength*spec;
     vec3f specular=mul3df(spec,light_colour);
-
-//    vec3f res=mul3d(add3d(ambiant_colour,add3d(diffuse,specular)),teapot_colour);
     vec3f res=add3d(ambiant_colour,add3d(diffuse,specular));
-
     uint16_t colour=rgbToColour(clampf(res.x,0,255),clampf(res.y,0,255),clampf(res.z,0,255));
 
     quads[nquads++]=(quadtype){{p0.x,p0.y,p1.x,p1.y,p2.x,p2.y,p3.x,p3.y},
@@ -124,47 +119,49 @@ vec3f vrotate(vec3f v) {
                     (rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z)+position.y,
                     (rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z)};
 }
-void eval_bezier(const uint32_t divs, const vec3f p0, const vec3f p1, const vec3f p2, const vec3f p3, vec3f out[]) 
-{ 
-    float h = 1.f / divs; 
-    vec3f b0 = p0; 
-    vec3f fph = mul3df(3*h,sub3d(p1 , p0)); 
-    vec3f fpphh = mul3df(h*h,(add3d(sub3d(mul3df(6 , p0) , mul3df(12 , p1)) , mul3df(6 , p2)))); 
-    vec3f fppphhh = mul3df(h*h*h,add3d(sub3d(add3d(mul3df(-6 , p0) , mul3df(18 , p1)) , mul3df(18 , p2)) , mul3df(6 , p3))); 
-    out[0] = b0; 
-    for (uint32_t i = 1; i <= divs; ++i) { 
-        out[i] = add3d(add3d(add3d(out[i - 1] , fph) , mul3df(0.5f,fpphh)) , mul3df(0.1666f,fppphhh)); 
-        fph = add3d(add3d(fph , fpphh) , mul3df(0.5f,fppphhh)); 
-        fpphh = add3d(fpphh , fppphhh); 
-    } 
-} 
-static inline int max(int a, int b) {return a>b?a:b;}
-static inline int min(int a, int b) {return a<b?a:b;}
-void add_bezier_patch(vec3f const p[4][4]) 
-{ 
-    int PX=8;
-    int maxx=max(max(max(p[0][0].x,p[0][3].x),p[3][0].x),p[3][3].x);
-    int maxy=max(max(max(p[0][0].y,p[0][3].y),p[3][0].y),p[3][3].y);
-    int minx=min(min(min(p[0][0].x,p[0][3].x),p[3][0].x),p[3][3].x);
-    int miny=min(min(min(p[0][0].y,p[0][3].y),p[3][0].y),p[3][3].y);
+void eval_bezier(const uint32_t divs, const vec3f p0, const vec3f p1, const vec3f p2, const vec3f p3, vec3f out[]) { 
+    float h = 1.f / divs;
+    vec3f b0 = p0;
+    vec3f fph = mul3df(3*h,sub3d(p1 , p0));
+    vec3f fpphh = mul3df(h*h,(add3d(sub3d(mul3df(6 , p0) , mul3df(12 , p1)) , mul3df(6 , p2))));
+    vec3f fppphhh = mul3df(h*h*h,add3d(sub3d(add3d(mul3df(-6 , p0) , mul3df(18 , p1)) , mul3df(18 , p2)) , mul3df(6 , p3)));
+    out[0] = b0;
+    for (uint32_t i = 1; i <= divs; ++i) {
+        out[i] = add3d(add3d(add3d(out[i - 1] , fph) , mul3df(0.5f,fpphh)) , mul3df(0.1666f,fppphhh));
+        fph = add3d(add3d(fph , fpphh) , mul3df(0.5f,fppphhh));
+        fpphh = add3d(fpphh , fppphhh);
+    }
+}
+//static inline int max(int a, int b) {return a>b?a:b;}
+//static inline int min(int a, int b) {return a<b?a:b;}
+static inline float maxf(float a, float b) {return a>b?a:b;}
+static inline float minf(float a, float b) {return a<b?a:b;}
+void add_bezier_patch(vec3f const p[4][4]) {
+    int PX=4;
 
-    int divx=abs(maxx-minx);
-    int divy=abs(maxy-miny);
-    int divs=(divx>divy)?divx/PX:divy/PX;
-    if(divs<6) divs=6;
-    if(divs>14) divs=14;
-    vec3f py[4][divs + 1];
-    for (uint16_t i = 0; i < 4; ++i) { 
+    float d1=mag3d(sub3d(p[0][0],p[0][3]));
+    float d2=mag3d(sub3d(p[0][0],p[3][0]));
+    float d3=mag3d(sub3d(p[3][3],p[0][3]));
+    float d4=mag3d(sub3d(p[3][3],p[3][0]));
+    
+    float maxd=sqrtf(maxf(maxf(maxf(d1,d2),d3),d4));
+
+    int divs=maxd/PX;
+
+    if(divs<4) divs=4;
+    if(divs>13) divs=13;
+    vec3f py[4][divs+1];
+    for (int i=0; i<4; i++) { 
         eval_bezier(divs, p[i][0], p[i][1], p[i][2], p[i][3], py[i]); 
     }
     vec3f np[2][divs+1];
-    for (uint16_t i = 0; i <= divs; ++i) {
+    for (int i=0; i<=divs; i++) {
         eval_bezier(divs, py[0][i], py[1][i], py[2][i], py[3][i], np[i%2]); 
         if(i>0) {
             int j1=i%2;
-            int j0=(i+1)%2;
-            for (uint16_t k = 1; k <= divs; k++) {
-                add_quad(np[j0][k-1],np[j1][k-1],np[j1][k],np[j0][k]);
+            int j0=1-j1;
+            for (int k=0; k<divs; k++) {
+                add_quad(np[j0][k],np[j1][k],np[j1][k+1],np[j0][k+1]);
             }
         }
     } 
@@ -172,8 +169,8 @@ void add_bezier_patch(vec3f const p[4][4])
 
 void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
 
-    static vec3f p[4][4];
-    teapot_colour=(vec3f){col.r,col.g,col.b};
+    
+    material_colour=(vec3f){col.r,col.g,col.b};
     maketrotationmatrix(rot,pos,size);
 
     // the teapot is made from 32 patches as follows:
@@ -186,12 +183,13 @@ void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
 
     nquads=0;
     for(int ii=0;ii<32;ii++) {
+        vec3f p[4][4];
         for(int j=0;j<4;j++) {
             for(int k=0;k<4; k++) {
                 p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1]);
             }
         }
-       add_bezier_patch(p);
+        add_bezier_patch(p);
     }
     draw_all_quads();
 }
@@ -221,7 +219,7 @@ void draw_cube(vec2f pos, float size, vec3f rot) {
         col.r=((q+1)&1)*255;
         col.g=(((q+1)>>1)&1)*255;
         col.b=(((q+1)>>2)&1)*255;
-        teapot_colour=(vec3f){col.r,col.g,col.b};
+        material_colour=(vec3f){col.r,col.g,col.b};
         add_quad(quad[0],quad[1],quad[2],quad[3]);
     }
     draw_all_quads();
