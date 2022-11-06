@@ -11,13 +11,13 @@
 vec3f lightdir={0.577f,-0.577f,0.577f};
 float rmx[3][3];
 vec2f position={0,0};
-vec3f ambiant_colour={0.2,0.2,0.2};
+vec3f ambiant_colour={40,20,20};//{0.2,0.2,0.2};
 vec3f teapot_colour={20,220,40};
-vec3f diffuse_colour={0.5,0.5,0.5};
-vec3f light_colour={1.0,1.0,1.0};
+//vec3f diffuse_colour={0.5,0.5,0.5};
+vec3f light_colour={255,255,255};//{1.0,1.0,1.0};
 const float specularstrength=0.5f;
 typedef  struct {uint16_t p[8]; uint16_t col; int16_t z;} quadtype;
-#define MAXQUADS 24*32
+#define MAXQUADS 24*32*4
 int nquads;
 static quadtype quads[MAXQUADS];
 
@@ -83,14 +83,17 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     if(nquads>=MAXQUADS) return;
     float dp=dot(normal,lightdir);
     float diff=clampf(dp,0,1.0);
-    vec3f diffuse=mul3df(diff,diffuse_colour);
+    vec3f diffuse=mul3df(diff,teapot_colour);
     float spec=clampf(2.0f*dp*normal.z-lightdir.z,0,2);
     spec=spec*spec;
     spec=spec*spec;
+    spec=spec*spec;
+  //  spec=spec*spec;
     spec=specularstrength*spec;
     vec3f specular=mul3df(spec,light_colour);
 
-    vec3f res=mul3d(add3d(ambiant_colour,add3d(diffuse,specular)),teapot_colour);
+//    vec3f res=mul3d(add3d(ambiant_colour,add3d(diffuse,specular)),teapot_colour);
+    vec3f res=add3d(ambiant_colour,add3d(diffuse,specular));
 
     uint16_t colour=rgbToColour(clampf(res.x,0,255),clampf(res.y,0,255),clampf(res.z,0,255));
 
@@ -121,35 +124,54 @@ vec3f vrotate(vec3f v) {
                     (rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z)+position.y,
                     (rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z)};
 }
+void eval_bezier(const uint32_t divs, const vec3f p0, const vec3f p1, const vec3f p2, const vec3f p3, vec3f out[]) 
+{ 
+    float h = 1.f / divs; 
+    vec3f b0 = p0; 
+    vec3f fph = mul3df(3*h,sub3d(p1 , p0)); 
+    vec3f fpphh = mul3df(h*h,(add3d(sub3d(mul3df(6 , p0) , mul3df(12 , p1)) , mul3df(6 , p2)))); 
+    vec3f fppphhh = mul3df(h*h*h,add3d(sub3d(add3d(mul3df(-6 , p0) , mul3df(18 , p1)) , mul3df(18 , p2)) , mul3df(6 , p3))); 
+    out[0] = b0; 
+    for (uint32_t i = 1; i <= divs; ++i) { 
+        out[i] = add3d(add3d(add3d(out[i - 1] , fph) , mul3df(0.5f,fpphh)) , mul3df(0.1666f,fppphhh)); 
+        fph = add3d(add3d(fph , fpphh) , mul3df(0.5f,fppphhh)); 
+        fpphh = add3d(fpphh , fppphhh); 
+    } 
+} 
+static inline int max(int a, int b) {return a>b?a:b;}
+static inline int min(int a, int b) {return a<b?a:b;}
+void add_bezier_patch(vec3f const p[4][4]) 
+{ 
+    int PX=8;
+    int maxx=max(max(max(p[0][0].x,p[0][3].x),p[3][0].x),p[3][3].x);
+    int maxy=max(max(max(p[0][0].y,p[0][3].y),p[3][0].y),p[3][3].y);
+    int minx=min(min(min(p[0][0].x,p[0][3].x),p[3][0].x),p[3][3].x);
+    int miny=min(min(min(p[0][0].y,p[0][3].y),p[3][0].y),p[3][3].y);
 
-void bezier(vec3f const p[4][4], vec3f np[7][7]) {
-    vec3f t[7][4];
-    for(int i=0;i<4;i++) {
-        t[0][i]=p[i][0];
-        t[6][i]=p[i][3];
-        vec3f m=mid3d(p[i][1],p[i][2]);
-        t[1][i]=mid3d(p[i][0],p[i][1]);
-        t[5][i]=mid3d(p[i][2],p[i][3]);
-        t[2][i]=mid3d(t[1][i],m);
-        t[4][i]=mid3d(t[5][i],m);
-        t[3][i]=mid3d(t[2][i],t[4][i]);
+    int divx=abs(maxx-minx);
+    int divy=abs(maxy-miny);
+    int divs=(divx>divy)?divx/PX:divy/PX;
+    if(divs<6) divs=6;
+    if(divs>14) divs=14;
+    vec3f py[4][divs + 1];
+    for (uint16_t i = 0; i < 4; ++i) { 
+        eval_bezier(divs, p[i][0], p[i][1], p[i][2], p[i][3], py[i]); 
     }
-    for(int i=0;i<7;i++) {
-        np[0][i]=t[i][0];
-        np[6][i]=t[i][3];
-        vec3f m=mid3d(t[i][1],t[i][2]);
-        np[1][i]=mid3d(t[i][0],t[i][1]);
-        np[5][i]=mid3d(t[i][2],t[i][3]);
-        np[2][i]=mid3d(np[1][i],m);
-        np[4][i]=mid3d(np[5][i],m);
-        np[3][i]=mid3d(np[2][i],np[4][i]);
-    }
+    vec3f np[2][divs+1];
+    for (uint16_t i = 0; i <= divs; ++i) {
+        eval_bezier(divs, py[0][i], py[1][i], py[2][i], py[3][i], np[i%2]); 
+        if(i>0) {
+            int j1=i%2;
+            int j0=(i+1)%2;
+            for (uint16_t k = 1; k <= divs; k++) {
+                add_quad(np[j0][k-1],np[j1][k-1],np[j1][k],np[j0][k]);
+            }
+        }
+    } 
 }
-
 
 void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
 
-    static vec3f np[7][7];
     static vec3f p[4][4];
     teapot_colour=(vec3f){col.r,col.g,col.b};
     maketrotationmatrix(rot,pos,size);
@@ -169,12 +191,7 @@ void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
                 p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1]);
             }
         }
-        bezier(p,np);
-        for(int j=1;j<7;j++) {
-            for(int k=1;k<7;k++) {
-                add_quad(np[j-1][k-1],np[j-1][k],np[j][k],np[j][k-1]);
-            }
-        }
+       add_bezier_patch(p);
     }
     draw_all_quads();
 }
