@@ -129,11 +129,11 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
     int vbx=1,vby=1;
     vec3f rotation={PI/2-0.2,0,0};
     float teapot_size=(20*REAL_DISPLAY_HEIGHT)/135;
-    colourtype diffuse={20,220,40};
+    colourtype teapot_col={220,20,40};
     vec2f pos;
     int frame=0;
     while(1) {
-        cls(rgbToColour(100,20,20));
+        cls(rgbToColour(50,50,50));
         setFont(FONT_DEJAVU18);
         //int twidth=print_xy(title, 0, -1);
         draw_rectangle(0,3,display_width,24,rgbToColour(220,220,0));
@@ -146,7 +146,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
         by+=vby;
         if(bx<bubble.width/2 || bx+bubble.width/2>display_width) {vbx=-vbx;bx+=vbx;}
         if(by<bubble.height/2 || by+bubble.height/2>display_height) {vby=-vby;by+=vby;}
-        draw_teapot(pos,teapot_size,rotation,diffuse);
+        draw_teapot(pos,teapot_size,rotation,teapot_col);
         rotation=add3d(rotation,(vec3f){0.011,0.019,0.017});
         if(rotation.x>2*PI) rotation.x-=2*PI;
         if(rotation.y>2*PI) rotation.y-=2*PI;

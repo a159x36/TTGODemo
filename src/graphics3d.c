@@ -137,25 +137,32 @@ void eval_bezier(const uint32_t divs, const vec3f p0, const vec3f p1, const vec3
 static inline float maxf(float a, float b) {return a>b?a:b;}
 static inline float minf(float a, float b) {return a<b?a:b;}
 void add_bezier_patch(vec3f const p[4][4]) {
-    int PX=4;
+    int PX=2;
 
     float d1=mag3d(sub3d(p[0][0],p[0][3]));
     float d2=mag3d(sub3d(p[0][0],p[3][0]));
     float d3=mag3d(sub3d(p[3][3],p[0][3]));
     float d4=mag3d(sub3d(p[3][3],p[3][0]));
     
-    float maxd=sqrtf(maxf(maxf(maxf(d1,d2),d3),d4));
+    float maxyd=sqrtf(maxf(d1,d4));
+    float maxxd=sqrtf(maxf(d2,d3));
 
-    int divs=maxd/PX;
+    int divs=maxxd/PX;
+    int ydivs=maxyd/PX;
 
-    if(divs<4) divs=4;
-    if(divs>13) divs=13;
-    vec3f py[4][divs+1];
+    if(divs==0 && ydivs==0) return;
+
+//    if(divs<4) divs=4;
+//    if(divs>13) divs=13;
+    divs=clamp(divs,4,24);
+    ydivs=clamp(ydivs,4,24);
+//    int ydivs=24;
+    vec3f py[4][ydivs+1];
     for (int i=0; i<4; i++) { 
-        eval_bezier(divs, p[i][0], p[i][1], p[i][2], p[i][3], py[i]); 
+        eval_bezier(ydivs, p[i][0], p[i][1], p[i][2], p[i][3], py[i]); 
     }
     vec3f np[2][divs+1];
-    for (int i=0; i<=divs; i++) {
+    for (int i=0; i<=ydivs; i++) {
         eval_bezier(divs, py[0][i], py[1][i], py[2][i], py[3][i], np[i%2]); 
         if(i>0) {
             int j1=i%2;
