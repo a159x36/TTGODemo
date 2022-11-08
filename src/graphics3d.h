@@ -7,19 +7,19 @@ typedef struct { float x; float y;} vec2f;
 typedef struct {uint16_t r; uint16_t g; uint16_t b;} colourtype;
 
 
-static inline vec3f sub3d(vec3f p0, vec3f p1) {
+static inline vec3f sub3d(const vec3f p0, const vec3f p1) {
     return (vec3f){p0.x-p1.x, p0.y-p1.y, p0.z-p1.z};
 }
 
-static inline vec3f add3d(vec3f p0, vec3f p1) {
+static inline vec3f add3d(const vec3f p0, const vec3f p1) {
     return (vec3f){p0.x+p1.x, p0.y+p1.y, p0.z+p1.z};
 }
 
-static inline vec3f mul3d(vec3f p0,vec3f p1) {
+static inline vec3f mul3d(const vec3f p0,const vec3f p1) {
     return (vec3f){p0.x*p1.x,p0.y*p1.y,p0.z*p1.z};
 }
 
-static inline vec3f mul3df(float f,vec3f p1) {
+static inline vec3f mul3df(const float f,const vec3f p1) {
     return (vec3f){f*p1.x,f*p1.y,f*p1.z};
 }
 
