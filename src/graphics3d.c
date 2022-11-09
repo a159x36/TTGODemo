@@ -15,10 +15,11 @@ vec3f ambiant_colour={20,20,20};//{0.2,0.2,0.2};
 vec3f material_colour={20,220,40};
 vec3f light_colour={255,255,255};//{1.0,1.0,1.0};
 const float specularstrength=0.5f;
-typedef  struct {uint16_t p[8]; uint16_t col; int8_t z;} quadtype;
-#define MAXQUADS 24*32*4
+typedef  struct quadtype {uint16_t p[8]; uint16_t col; struct quadtype *next;} quadtype;
+#define MAXQUADS 24*32*6
 int nquads;
-quadtype *quads;//[MAXQUADS];
+quadtype *quads;
+quadtype **quad_lists; 
 
 inline int clamp(int x,int min,int max) {
     const int t = x < min ? min : x;
@@ -92,24 +93,20 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     vec3f res=add3d(ambiant_colour,add3d(diffuse,specular));
     uint16_t colour=rgbToColour(clampf(res.x,0,255),clampf(res.y,0,255),clampf(res.z,0,255));
 
+    uint8_t zindex=((p0.z+p1.z+p2.z+p3.z)/4)+128;
     quads[nquads++]=(quadtype){{p0.x,p0.y,p1.x,p1.y,p2.x,p2.y,p3.x,p3.y},
-                        colour,(int8_t)((p0.z+p1.z+p2.z+p3.z)/4)};
-}
-
-int cmpquad(const void * a, const void * b) {
-   return ( ((quadtype *)a)->z - ((quadtype *)b)->z );
-}
-
-void sort_quads() {
-    qsort(quads, nquads, sizeof(quadtype), cmpquad);    
+                        colour,quad_lists[zindex]};
+    quad_lists[zindex]=&quads[nquads-1];
 }
 
 void draw_all_quads() {
-    sort_quads();
-    for(int i=0;i<nquads;i++) {
-        quadtype q=quads[i];
-        draw_triangle(q.p[0],q.p[1],q.p[2],q.p[3],q.p[4],q.p[5],q.col);
-        draw_triangle(q.p[4],q.p[5],q.p[6],q.p[7],q.p[0],q.p[1],q.col);
+    for(int i=0;i<256;i++) {
+        quadtype *q=quad_lists[i];
+        while(q!=0) {
+            draw_triangle(q->p[0],q->p[1],q->p[2],q->p[3],q->p[4],q->p[5],q->col);
+            draw_triangle(q->p[4],q->p[5],q->p[6],q->p[7],q->p[0],q->p[1],q->col);
+            q=q->next;
+        }
     }
 }
 
@@ -145,13 +142,28 @@ void eval_bezier(const uint32_t divs, const float h, const vec3f p0, const vec3f
 //static inline int min(int a, int b) {return a<b?a:b;}
 static inline float maxf(float a, float b) {return a>b?a:b;}
 static inline float minf(float a, float b) {return a<b?a:b;}
-void add_bezier_patch(vec3f const p[4][4]) {
-    int PX=4;
 
-    float d1=mag3d(sub3d(p[0][0],p[0][3]));
-    float d2=mag3d(sub3d(p[0][0],p[3][0]));
-    float d3=mag3d(sub3d(p[3][3],p[0][3]));
-    float d4=mag3d(sub3d(p[3][3],p[3][0]));
+static inline float dist(vec3f a, vec3f b) {return (mag3d(sub3d(a,b)));}
+
+float bezier_length(vec3f const p0,vec3f const p1,vec3f const p2,vec3f const p3) {
+    //return mag3d(sub3d(p0,p3));
+    
+    vec3f m=mid3d(p1,p2);
+    vec3f t1=mid3d(p0,p1);
+    vec3f t5=mid3d(p2,p3);
+    vec3f t2=mid3d(t1,m);
+    vec3f t4=mid3d(t5,m);
+    vec3f t3=mid3d(t2,t4);
+    return dist(t1,p0)+dist(t2,t1)+dist(t3,t2)+dist(t4,t3)+dist(t5,t3)+dist(p3,t5);
+
+}
+void add_bezier_patch(vec3f const p[4][4]) {
+    int PX=2;
+
+    float d1=bezier_length(p[0][0],p[0][1],p[0][2],p[0][3]);//mag3d(sub3d(p[0][0],p[0][3]));
+    float d2=bezier_length(p[0][0],p[1][0],p[2][0],p[3][0]);//mag3d(sub3d(p[0][0],p[3][0]));
+    float d3=bezier_length(p[0][3],p[1][3],p[2][3],p[3][3]);//mag3d(sub3d(p[3][3],p[0][3]));
+    float d4=bezier_length(p[3][0],p[3][1],p[3][2],p[3][3]);//mag3d(sub3d(p[3][3],p[3][0]));
     
     float maxyd=sqrtf(maxf(d1,d4));
     float maxxd=sqrtf(maxf(d2,d3));
@@ -159,13 +171,13 @@ void add_bezier_patch(vec3f const p[4][4]) {
     int xdivs=maxxd/PX;
     int ydivs=maxyd/PX;
 
-    if(xdivs==0 && ydivs==0) return;
+ //   if(xdivs==0 && ydivs==0) return;
 
 //    if(divs<4) divs=4;
 //    if(divs>13) divs=13;
-    xdivs=clamp(xdivs,7,24);
-    ydivs=clamp(ydivs,7,24);
-//    int ydivs=24;
+    xdivs=clamp(xdivs,4,20);
+    ydivs=clamp(ydivs,4,20);
+    //xdivs=24;
     vec3f py[4][ydivs+1];
     float h = 1.f / ydivs;
     for (int i=0; i<4; i++) { 
@@ -185,14 +197,26 @@ void add_bezier_patch(vec3f const p[4][4]) {
     } 
 }
 
+void quad_init() {
+    quads=malloc(sizeof(quadtype)*MAXQUADS);
+    quad_lists=malloc(sizeof(quadtype *)*256);
+    for(int i=0;i<256;i++)
+        quad_lists[i]=0;
+}
+void quad_free() {
+    free(quad_lists);
+    free(quads);
+}
+
+
 void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
 
-    quads=malloc(sizeof(quadtype)*MAXQUADS);
+    quad_init();
     material_colour=(vec3f){col.r,col.g,col.b};
     maketrotationmatrix(rot,pos,size);
 
     // the teapot is made from 32 patches as follows:
-    // 28-32=base
+    // 28-31=base
     // 20-27=lid
     // 16-19=spout
     // 12-15=handle
@@ -202,6 +226,9 @@ void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
     nquads=0;
     for(int ii=0;ii<32;ii++) {
         vec3f p[4][4];
+        //int c=ii;
+        //material_colour=(vec3f){((c&4)>>2)*255,((c&2)>>1)*255,((c&1))*255};
+        //if(ii>)
         for(int j=0;j<4;j++) {
             for(int k=0;k<4; k++) {
                 p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1]);
@@ -210,7 +237,7 @@ void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
         add_bezier_patch(p);
     }
     draw_all_quads();
-    free(quads);
+    quad_free();
 }
 
 const uint8_t cubeQuads[][4] = { 
@@ -223,6 +250,7 @@ const uint8_t cubeQuads[][4] = {
 };
 
 void draw_cube(vec2f pos, float size, vec3f rot) {
+    quad_init();
     colourtype col;
     nquads=0;
     maketrotationmatrix(rot,pos,size);
@@ -242,4 +270,5 @@ void draw_cube(vec2f pos, float size, vec3f rot) {
         add_quad(quad[0],quad[1],quad[2],quad[3]);
     }
     draw_all_quads();
+    quad_free();
 }
