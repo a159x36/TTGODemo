@@ -61,7 +61,7 @@ void event_handler(void *arg, esp_event_base_t event_base,
         "MQTT_UNSUBSCRIBED","MQTT_PUBLISHED","MQTT_DATA","MQTT_BEFORE_CONNECT"};
     if (event_base == WIFI_EVENT) {
         set_event_message(wifi_messages[event_id%ARRAY_LENGTH(wifi_messages)]);
-        system_event_sta_disconnected_t* disconnect_data;
+        wifi_event_sta_disconnected_t* disconnect_data;
         switch (event_id) {
         case WIFI_EVENT_STA_START:
             xEventGroupClearBits(network_event_group, AUTH_FAIL | CONNECTED_BIT);
@@ -190,7 +190,7 @@ void web_task(void *pvParameters) {
     esp_http_client_handle_t client = esp_http_client_init(&config);
     esp_err_t err = esp_http_client_perform(client);
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "Status = %d, content_length = %d",
+        ESP_LOGI(TAG, "Status = %d, content_length = %lld",
            esp_http_client_get_status_code(client),
            esp_http_client_get_content_length(client));
     } else {
@@ -228,7 +228,7 @@ void mqtt_connect(mqtt_callback_type callback) {
     if(mqtt_client!=NULL) mqtt_disconnect();
     srand(esp_timer_get_time());
     sprintf(client_name,"esp32_%d",rand()%1000);
-    esp_mqtt_client_config_t mqtt_cfg = { .uri = "mqtt://mqtt.webhop.org",.client_id=client_name};
+    esp_mqtt_client_config_t mqtt_cfg = { .broker.address.uri = "mqtt://mqtt.webhop.org",.credentials.client_id=client_name};
     wifi_connect(1);
     if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
         mqtt_client=esp_mqtt_client_init(&mqtt_cfg);

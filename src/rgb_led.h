@@ -1,5 +1,3 @@
-
-
 #ifndef ESP32_DIGITAL_LED_LIB_H
 #define ESP32_DIGITAL_LED_LIB_H
 

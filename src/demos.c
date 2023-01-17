@@ -9,13 +9,14 @@
 #include <math.h>
 #include <esp_log.h>
 #include <esp_sntp.h>
+#include <driver/gpio.h>
 #include "fonts.h"
 #include "image_wave.h"
 #include "graphics3d.h"
 #include <graphics.h>
 #include "demos.h"
-#include <driver/adc.h>
-#include <esp_adc_cal.h>
+#include <esp_adc/adc_oneshot.h>
+#include <esp_adc/adc_cali.h>
 #include <nvs_flash.h>
 #include <time.h>
 #include "input_output.h"
@@ -134,12 +135,24 @@ void image_wave_demo() {
     //sp_adc_cal_characteristics_t adc_chars;
     // voltage reference calibration for Battery ADC
     uint32_t vref;  
+    adc_oneshot_unit_handle_t adc1_handle;
     if (DISPLAY_VOLTAGE) {
         gpio_set_direction(VOLTAGE_GPIO, GPIO_MODE_INPUT);
         // Configure ADC
-        adc1_config_width(ADC_WIDTH_BIT_12);
+        
+        adc_oneshot_unit_init_cfg_t init_config1 = {
+            .unit_id = ADC_UNIT_1,
+            .ulp_mode = ADC_ULP_MODE_DISABLE,
+        };
+        ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
+        adc_oneshot_chan_cfg_t config = {
+            .bitwidth = ADC_BITWIDTH_12,
+            .atten = ADC_ATTEN_DB_11,
+        };
+        adc_oneshot_config_channel(adc1_handle, VOLTAGE_ADC, &config);
+        //adc1_config_width(ADC_WIDTH_BIT_12);
         // Correct adc channel for gpio
-        adc1_config_channel_atten(VOLTAGE_ADC, ADC_ATTEN_DB_11);
+        //adc1_config_channel_atten(VOLTAGE_ADC, ADC_ATTEN_DB_11);
     //    esp_adc_cal_characteristics_t adc_chars;
     //    esp_adc_cal_characterize(
     //        (adc_unit_t)ADC_UNIT_1, (adc_atten_t)ADC_ATTEN_DB_11,
@@ -153,12 +166,14 @@ void image_wave_demo() {
         setFont(FONT_DEJAVU24);
         if (DISPLAY_VOLTAGE) {
             setFontColour(20, 0, 200);
-            uint32_t raw = adc1_get_raw((adc1_channel_t)VOLTAGE_ADC);
+            int raw;
+            adc_oneshot_read(adc1_handle,VOLTAGE_ADC,&raw);
+           // (adc1_channel_t)VOLTAGE_ADC);
           //  int v=esp_adc_cal_raw_to_voltage(raw, &adc_chars);
             float battery_voltage = ((float)raw / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
             snprintf(buff, 128, "%.2fV %d", battery_voltage, raw);
             setFontColour(0, 0, 0);
-            print_xy(buff, 12, 12);
+            print_xy(buff, 12, 12); 
             setFontColour(20, 200, 200);
             print_xy(buff, 10, 10);
         }

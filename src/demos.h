@@ -27,10 +27,10 @@ void led_cube(void);
 
 #ifdef TTGO_S3
     #define VOLTAGE_GPIO 4
-    #define VOLTAGE_ADC ADC1_CHANNEL_3
+    #define VOLTAGE_ADC ADC_CHANNEL_3
 #else
     #define VOLTAGE_GPIO 34
-    #define VOLTAGE_ADC ADC1_CHANNEL_6
+    #define VOLTAGE_ADC ADC_CHANNEL_6
 #endif
 #define DISPLAY_IMAGE_WAVE 1
 

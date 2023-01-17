@@ -1,8 +1,8 @@
 #include <driver/gpio.h>
 
 #include <esp_system.h>
+
 #include "input_output.h"
-#include <esp_system.h>
 #include "fonts.h"
 #include "graphics.h"
 #include "image_wave.h"
@@ -37,7 +37,7 @@ const int TOUCH_PADS[4]={2,3,9,8};
 
 // for button inputs
 QueueHandle_t inputQueue;
-xTimerHandle repeatTimer;
+TimerHandle_t repeatTimer;
 uint64_t lastkeytime=0;
 int keyrepeat=1;
 
@@ -57,7 +57,7 @@ int read_touch(int t) {
     return 0;
 }
 
-static void repeatTimerCallback(xTimerHandle pxTimer) {
+static void repeatTimerCallback(TimerHandle_t pxTimer) {
     int v;
     if(button_val[0]==0) {
         v=0;

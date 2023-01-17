@@ -128,7 +128,7 @@ void init_wifi(wifi_mode_type mode) {
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         esp_wifi_set_protocol(ESP_IF_WIFI_STA,protocol);
         char ssid[32];
-        storage_read_string("ssid","",ssid,sizeof(ssid));
+        storage_read_string("ssid","MasseyWifi",ssid,sizeof(ssid));
         char password[64];
         storage_read_string("password","", password, sizeof(password));
         char username[64];
