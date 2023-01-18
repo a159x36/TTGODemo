@@ -2,6 +2,7 @@
 #define ESP32_DIGITAL_LED_LIB_H
 
 #include <stdint.h>
+#define CONFIG_RMT_SUPPRESS_DEPRECATE_WARN 1
 #include <driver/rmt.h>
 
 typedef struct __attribute__ ((packed)) {

@@ -41,3 +41,11 @@ extern int is_emulator;
 extern const char *tag;
 void initialise_wifi(void);
 int obtain_time(void);
+
+// these allow intellisense to work
+#ifndef __ASSERT_FUNCTION
+#define __ASSERT_FUNCTION 0
+#endif
+#ifndef CONFIG_LOG_MAXIMUM_LEVEL
+#define CONFIG_LOG_MAXIMUM_LEVEL 3
+#endif

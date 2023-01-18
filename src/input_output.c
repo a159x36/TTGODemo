@@ -363,7 +363,7 @@ nvs_handle_t storage_open(nvs_open_mode_t mode) {
 
 int storage_read_int(char *name, int def) {
     nvs_handle_t handle=storage_open(NVS_READONLY);
-    int val=def;
+    int32_t val=def;
     nvs_get_i32(handle, name, &val);
     nvs_close(handle);
     return val;

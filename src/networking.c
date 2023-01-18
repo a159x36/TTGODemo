@@ -160,7 +160,7 @@ esp_err_t http_event_handler(esp_http_client_event_t *evt) {
     return ESP_OK;
 }
 
-static uint32_t jpg_read(JDEC *decoder, uint8_t *buf, uint32_t len) {
+static UINT jpg_read(JDEC *decoder, BYTE *buf, UINT len) {
     for(int i=0;i<len;i++) {
         int data;
         xQueueReceive(imageQueue, &data, portMAX_DELAY);
@@ -172,7 +172,7 @@ static uint32_t jpg_read(JDEC *decoder, uint8_t *buf, uint32_t len) {
     return len;
 }
 
-static uint32_t jpg_write(JDEC *decoder, void *bitmap, JRECT *rect) {
+static UINT jpg_write(JDEC *decoder, void *bitmap, JRECT *rect) {
     char *rgb=(char *)bitmap;
     for(int y=rect->top;y<=rect->bottom; y++)
         for(int x=rect->left;x<=rect->right; x++) {

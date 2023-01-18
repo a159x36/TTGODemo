@@ -28,6 +28,8 @@ static uint32_t t1l_ticks = 0;
 static uint32_t reset_ticks = 0;
 static uint8_t max_value=255;
 
+
+
 static void IRAM_ATTR ws2812_rmt_adapter(const void *src, rmt_item32_t *dest, size_t src_size,
         size_t wanted_num, size_t *translated_size, size_t *item_num) {
     if (src == NULL || dest == NULL) {
