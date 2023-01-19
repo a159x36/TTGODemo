@@ -8,13 +8,17 @@
 #include <freertos/event_groups.h>
 #include <freertos/task.h>
 
+// this code can draw any 3d object but mostly just a teapot.
+
 vec3f lightdir={0.577f,-0.577f,0.577f};
 float rmx[3][3];
 vec2f position={0,0};
-vec3f ambiant_colour={20,20,20};//{0.2,0.2,0.2};
+vec3f ambiant_colour={20,20,20};
 vec3f material_colour={20,220,40};
-vec3f light_colour={255,255,255};//{1.0,1.0,1.0};
+vec3f light_colour={255,255,255};
 const float specularstrength=0.5f;
+
+// objects are drawn using some lists of quads sorted in z order.  
 typedef  struct quadtype {uint16_t p[8]; uint16_t col; struct quadtype *next;} quadtype;
 #define MAXQUADS 24*32*6
 int nquads;
@@ -30,7 +34,7 @@ inline float clampf(float x,float min,float max) {
     const float t = x < min ? min : x;
     return t > max ? max : t;
 }
-
+/*
 inline vec2 point3d_to_xy(vec3f p) {
     return (vec2){clamp((int)p.x,0,display_width-1),
                   clamp((int)p.y,0,display_height-1)};
@@ -50,7 +54,7 @@ void draw_triangle_3d(vec3f p0, vec3f p1, vec3f p2, uint16_t colour) {
     c=point3d_to_xy(p2);
     draw_triangle(a.x,a.y,b.x,b.y,c.x,c.y, colour);
 }
-
+*/
 
 void maketrotationmatrix(vec3f rotation, vec2f pos, float size) {
     position=pos;
@@ -72,18 +76,22 @@ void maketrotationmatrix(vec3f rotation, vec2f pos, float size) {
     rmx[2][2]=cb*ca*size;
 }
 
+// add a quad to one of the lists and work out what colour to draw it.
 void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     if(p0.x<0 && p1.x<0 && p2.x<0 && p3.x<0) return;
     if(p0.y<0 && p1.y<0 && p2.y<0 && p3.y<0) return;
     if(p0.x>display_width && p1.x>display_width && p2.x>display_width && p3.x>display_width) return;
     if(p0.y>display_height && p1.y>display_height && p2.y>display_height && p3.y>display_height) return;
     vec3f normal=cross3d(sub3d(p2,p0),sub3d(p3,p0));
+    // don't draw it if it's facing away from us.
     if(normal.z<=0) return;
     normal=normalise(normal);
     if(nquads>=MAXQUADS) return;
     float dp=dot(normal,lightdir);
     float diff=clampf(dp,0,1.0);
+    // diffuse lighting
     vec3f diffuse=mul3df(diff,material_colour);
+    // specular lighting
     float spec=clampf(2.0f*dp*normal.z-lightdir.z,0,2);
     spec=spec*spec;
     spec=spec*spec;
@@ -92,7 +100,8 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     vec3f specular=mul3df(spec,light_colour);
     vec3f res=add3d(ambiant_colour,add3d(diffuse,specular));
     uint16_t colour=rgbToColour(clampf(res.x,0,255),clampf(res.y,0,255),clampf(res.z,0,255));
-
+    // use average z value for the quad as the list index.
+    // so they are drawn with the closest last
     uint8_t zindex=((p0.z+p1.z+p2.z+p3.z)/4)+128;
     quads[nquads++]=(quadtype){{p0.x,p0.y,p1.x,p1.y,p2.x,p2.y,p3.x,p3.y},
                         colour,quad_lists[zindex]};
@@ -110,14 +119,17 @@ void draw_all_quads() {
     }
 }
 
+// rotate a vector by multiplying it by the rotation matrix
 vec3f vrotate(vec3f v) {
     v.z=(v.z-2.0);
     return (vec3f){ (rmx[0][0]*v.x+rmx[0][1]*v.y+rmx[0][2]*v.z)+position.x,
                     (rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z)+position.y,
                     (rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z)};
 }
+
+// evaluate a bezier curve using the fast forward difference algorithm
+// see here:  https://www.scratchapixel.com/lessons/geometry/bezier-curve-rendering-utah-teapot/fast-forward-differencing.html
 void eval_bezier(const uint32_t divs, const float h, const vec3f p0, const vec3f p1, const vec3f p2, const vec3f p3, vec3f out[]) { 
-    
     vec3f b0 = p0;
     vec3f fph = mul3df(3*h,sub3d(p1 , p0));
     vec3f fpphh = mul3df(h*h,(add3d(sub3d(mul3df(6 , p0) , mul3df(12 , p1)) , mul3df(6 , p2))));
@@ -138,16 +150,14 @@ void eval_bezier(const uint32_t divs, const float h, const vec3f p0, const vec3f
         out[i]=b0;
     }
 }
-//static inline int max(int a, int b) {return a>b?a:b;}
-//static inline int min(int a, int b) {return a<b?a:b;}
+
 static inline float maxf(float a, float b) {return a>b?a:b;}
 static inline float minf(float a, float b) {return a<b?a:b;}
 
 static inline float dist(vec3f a, vec3f b) {return (mag3d(sub3d(a,b)));}
 
-float bezier_length(vec3f const p0,vec3f const p1,vec3f const p2,vec3f const p3) {
-    //return mag3d(sub3d(p0,p3));
-    
+// get the approximate square of the length of a bezier curve.
+float bezier_length(vec3f const p0,vec3f const p1,vec3f const p2,vec3f const p3) {    
     vec3f m=mid3d(p1,p2);
     vec3f t1=mid3d(p0,p1);
     vec3f t5=mid3d(p2,p3);
@@ -155,29 +165,27 @@ float bezier_length(vec3f const p0,vec3f const p1,vec3f const p2,vec3f const p3)
     vec3f t4=mid3d(t5,m);
     vec3f t3=mid3d(t2,t4);
     return dist(t1,p0)+dist(t2,t1)+dist(t3,t2)+dist(t4,t3)+dist(t5,t3)+dist(p3,t5);
-
 }
+
 void add_bezier_patch(vec3f const p[4][4]) {
     int PX=2;
-
-    float d1=bezier_length(p[0][0],p[0][1],p[0][2],p[0][3]);//mag3d(sub3d(p[0][0],p[0][3]));
-    float d2=bezier_length(p[0][0],p[1][0],p[2][0],p[3][0]);//mag3d(sub3d(p[0][0],p[3][0]));
-    float d3=bezier_length(p[0][3],p[1][3],p[2][3],p[3][3]);//mag3d(sub3d(p[3][3],p[0][3]));
-    float d4=bezier_length(p[3][0],p[3][1],p[3][2],p[3][3]);//mag3d(sub3d(p[3][3],p[3][0]));
+    // a patch has 16 control points
+    // we use the length of the 1d curves to decide how many divisions to use.
+    float d1=bezier_length(p[0][0],p[0][1],p[0][2],p[0][3]);
+    float d2=bezier_length(p[0][0],p[1][0],p[2][0],p[3][0]);
+    float d3=bezier_length(p[0][3],p[1][3],p[2][3],p[3][3]);
+    float d4=bezier_length(p[3][0],p[3][1],p[3][2],p[3][3]);
     
     float maxyd=sqrtf(maxf(d1,d4));
     float maxxd=sqrtf(maxf(d2,d3));
-
+    // these are the x and y divisions
     int xdivs=maxxd/PX;
     int ydivs=maxyd/PX;
 
- //   if(xdivs==0 && ydivs==0) return;
-
-//    if(divs<4) divs=4;
-//    if(divs>13) divs=13;
+    // a min of 4 divs and a max of 20
     xdivs=clamp(xdivs,4,20);
     ydivs=clamp(ydivs,4,20);
-    //xdivs=24;
+
     vec3f py[4][ydivs+1];
     float h = 1.f / ydivs;
     for (int i=0; i<4; i++) { 
@@ -225,10 +233,8 @@ void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
 
     nquads=0;
     for(int ii=0;ii<32;ii++) {
+        // each patch is defined by 16 control points
         vec3f p[4][4];
-        //int c=ii;
-        //material_colour=(vec3f){((c&4)>>2)*255,((c&2)>>1)*255,((c&1))*255};
-        //if(ii>)
         for(int j=0;j<4;j++) {
             for(int k=0;k<4; k++) {
                 p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1]);

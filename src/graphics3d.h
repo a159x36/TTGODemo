@@ -39,6 +39,7 @@ static inline float mag2d(vec2f p) {
     return (p.x*p.x+p.y*p.y);
 }
 
+// square of the length of a vector
 static inline float mag3d(vec3f p) {
     return (p.x*p.x+p.y*p.y+p.z*p.z);
 }
