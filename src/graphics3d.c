@@ -34,27 +34,6 @@ inline float clampf(float x,float min,float max) {
     const float t = x < min ? min : x;
     return t > max ? max : t;
 }
-/*
-inline vec2 point3d_to_xy(vec3f p) {
-    return (vec2){clamp((int)p.x,0,display_width-1),
-                  clamp((int)p.y,0,display_height-1)};
-}
-
-void draw_line_3d(vec3f p0, vec3f p1, uint16_t colour) {
-    vec2 a,b;
-    a=point3d_to_xy(p0);
-    b=point3d_to_xy(p1);
-    draw_line(a.x,a.y,b.x,b.y, colour);
-}
-
-void draw_triangle_3d(vec3f p0, vec3f p1, vec3f p2, uint16_t colour) {
-    vec2 a,b,c;
-    a=point3d_to_xy(p0);
-    b=point3d_to_xy(p1);
-    c=point3d_to_xy(p2);
-    draw_triangle(a.x,a.y,b.x,b.y,c.x,c.y, colour);
-}
-*/
 
 void maketrotationmatrix(vec3f rotation, vec2f pos, float size) {
     position=pos;

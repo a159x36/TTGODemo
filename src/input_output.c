@@ -47,13 +47,14 @@ int read_touch(int t) {
     #ifdef TTGO_S3
     uint32_t touch_value;
     touch_pad_read_raw_data(t, &touch_value);
-    if(touch_value>12000) return 1;
+    //printf("touch %lu\n",touch_value);
+    if(touch_value>30000) return 1;
     #else
     uint16_t touch_value;
     touch_pad_read(t, &touch_value);
     if(touch_value<1000) return 1;
     #endif
-    //printf("touch %d\n",touch_value);
+    
     return 0;
 }
 
@@ -101,7 +102,6 @@ static void IRAM_ATTR gpio_isr_handler(void* arg)
 
 }
 
-
 // get a button press, returns a key_type value which can be
 // NO_KEY if no buttons have been pressed since the last call.
 key_type get_input() {
@@ -135,7 +135,6 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
     while(1) {
         cls(rgbToColour(50,50,50));
         setFont(FONT_DEJAVU18);
-        //int twidth=print_xy(title, 0, -1);
         draw_rectangle(0,3,display_width,24,rgbToColour(220,220,0));
         draw_rectangle(0,select*18+24+3,display_width,18,rgbToColour(0,180,180));
         pos=(vec2f){display_width/2,display_height/2};
@@ -186,9 +185,8 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
             printf("FPS:%f %d %d\n", 1.0e6 / (current_time - last_time),
                 heap_caps_get_free_size(MALLOC_CAP_DMA),
                 heap_caps_get_free_size(MALLOC_CAP_32BIT));
-            //vTaskDelay(1);
+                vTaskDelay(1);
         }
-       // vTaskDelay(2);
         last_time = current_time;
         key_type key=get_input();
         if(key==LEFT_DOWN) select=(select+1)%nentries;
@@ -200,7 +198,7 @@ void input_output_init() {
      // queue for button presses
     inputQueue = xQueueCreate(4,4);
     repeatTimer = xTimerCreate("repeat", pdMS_TO_TICKS(300),pdFALSE,(void*)0, repeatTimerCallback);
-        // interrupts for button presses
+    // interrupts for button presses
     gpio_set_direction(0, GPIO_MODE_INPUT);
     gpio_set_direction(RIGHT_BUTTON, GPIO_MODE_INPUT);
     gpio_set_intr_type(0, GPIO_INTR_LOW_LEVEL);
@@ -210,18 +208,22 @@ void input_output_init() {
     gpio_isr_handler_add(RIGHT_BUTTON, gpio_isr_handler, (void*) RIGHT_BUTTON);
 #ifdef SHOW_TOUCH_PADS
     touch_pad_init();
-    touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
-    #ifdef TTGO_S3
-    touch_pad_fsm_start();
-    #endif
-    touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_1V);
+    
+    
     for (int i = 0;i< 4;i++) {
         #ifdef TTGO_S3
         touch_pad_config(TOUCH_PADS[i]);
         #else
+        touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
+        touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_1V);
         touch_pad_config(TOUCH_PADS[i],0);
         #endif
     }
+    
+    #ifdef TTGO_S3
+    touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
+    touch_pad_fsm_start();
+    #endif
     
 #endif
 }

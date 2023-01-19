@@ -316,6 +316,7 @@ void wifi_scan(int setap) {
                 uint8_t *ap_name=ap_list[highlight].ssid;
                 storage_write_string("ssid",(char *)ap_name);
             }
+            //esp_wifi_scan_stop();
             return;
         }
     } while(true);
