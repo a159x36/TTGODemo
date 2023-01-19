@@ -19,11 +19,12 @@ vec3f light_colour={255,255,255};
 const float specularstrength=0.5f;
 
 // objects are drawn using some lists of quads sorted in z order.  
-typedef  struct quadtype {uint16_t p[8]; uint16_t col; struct quadtype *next;} quadtype;
-#define MAXQUADS 24*32*6
+typedef  struct quadtype {uint16_t p[8]; uint16_t col; uint16_t next;}  __attribute__ ((packed)) quadtype;
+#define MAXQUADS 24*32*4
+
 int nquads;
 quadtype *quads;
-quadtype **quad_lists; 
+uint16_t *quad_lists; 
 
 inline int clamp(int x,int min,int max) {
     const int t = x < min ? min : x;
@@ -65,7 +66,9 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     // don't draw it if it's facing away from us.
     if(normal.z<=0) return;
     normal=normalise(normal);
-    if(nquads>=MAXQUADS) return;
+    if(nquads>=MAXQUADS) {
+        return;
+    }
     float dp=dot(normal,lightdir);
     float diff=clampf(dp,0,1.0);
     // diffuse lighting
@@ -84,16 +87,17 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     uint8_t zindex=((p0.z+p1.z+p2.z+p3.z)/4)+128;
     quads[nquads++]=(quadtype){{p0.x,p0.y,p1.x,p1.y,p2.x,p2.y,p3.x,p3.y},
                         colour,quad_lists[zindex]};
-    quad_lists[zindex]=&quads[nquads-1];
+    quad_lists[zindex]=nquads-1;
 }
 
 void draw_all_quads() {
     for(int i=0;i<256;i++) {
-        quadtype *q=quad_lists[i];
-        while(q!=0) {
+        uint16_t qi=quad_lists[i];
+        while(qi!=65535) {
+            quadtype *q=quads+qi;
             draw_triangle(q->p[0],q->p[1],q->p[2],q->p[3],q->p[4],q->p[5],q->col);
             draw_triangle(q->p[4],q->p[5],q->p[6],q->p[7],q->p[0],q->p[1],q->col);
-            q=q->next;
+            qi=q->next;
         }
     }
 }
@@ -186,9 +190,9 @@ void add_bezier_patch(vec3f const p[4][4]) {
 
 void quad_init() {
     quads=malloc(sizeof(quadtype)*MAXQUADS);
-    quad_lists=malloc(sizeof(quadtype *)*256);
+    quad_lists=malloc(sizeof(uint16_t)*256);
     for(int i=0;i<256;i++)
-        quad_lists[i]=0;
+        quad_lists[i]=65535;
 }
 void quad_free() {
     free(quad_lists);
