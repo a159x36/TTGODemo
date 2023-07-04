@@ -15,5 +15,4 @@ The emulator should work on Windows, Linux and OSX
 
 This is what it looks like in the emulator:
 
-![emulator](https://user-images.githubusercontent.com/70237299/116870974-9f59bf00-ac67-11eb-8c5a-6033ebedc518.png)
-
+![ttgodemo](https://github.com/a159x36/TTGODemo/assets/53783/c8e037c2-7b99-41db-97b1-4945b738eee4)
