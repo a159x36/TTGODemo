@@ -311,9 +311,9 @@ void time_demo() {
         gprintf(network_event);
         if(xEventGroupGetBits(network_event_group) & CONNECTED_BIT) {
             if(sntp_status==0) {
-                sntp_setoperatingmode(SNTP_OPMODE_POLL);
-                sntp_setservername(0, "pool.ntp.org");
-                sntp_init();
+                esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
+                esp_sntp_setservername(0, "pool.ntp.org");
+                esp_sntp_init();
                 sntp_status=1;
             }
             time(&time_now);
@@ -328,6 +328,6 @@ void time_demo() {
         }
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
-    sntp_stop();
+    esp_sntp_stop(); 
 }
 
