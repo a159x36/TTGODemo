@@ -184,7 +184,7 @@ static UINT jpg_write(JDEC *decoder, void *bitmap, JRECT *rect) {
 
 void web_task(void *pvParameters) {
     esp_http_client_config_t config = {
-        .url = "http://www.trafficnz.info/camera/20.jpg",
+        .url = "http://www.trafficnz.info/camera/819.jpg", // if this is broken try 10.jpg, 20.jpg or 818.jpg
         .event_handler = http_event_handler,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
