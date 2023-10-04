@@ -6,11 +6,11 @@
 #include <driver/rmt.h>
 
 typedef struct __attribute__ ((packed)) {
-  uint8_t r, g, b;
+  uint8_t g, r, b;
 } pixelColor_t;
 
 inline pixelColor_t pixelFromRGB(uint8_t r, uint8_t g, uint8_t b) {
-  return (pixelColor_t){r,g,b};
+  return (pixelColor_t){g,r,b};
 }
 typedef struct {
   int bytesPerPixel;
