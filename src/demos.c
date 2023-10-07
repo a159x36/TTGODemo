@@ -132,14 +132,12 @@ void spaceship_demo() {
 void image_wave_demo() {
     char buff[128];
     int frame = 0;
-    //sp_adc_cal_characteristics_t adc_chars;
     // voltage reference calibration for Battery ADC
     uint32_t vref;  
     adc_oneshot_unit_handle_t adc1_handle;
     if (DISPLAY_VOLTAGE) {
         gpio_set_direction(VOLTAGE_GPIO, GPIO_MODE_INPUT);
         // Configure ADC
-        
         adc_oneshot_unit_init_cfg_t init_config1 = {
             .unit_id = ADC_UNIT_1,
             .ulp_mode = ADC_ULP_MODE_DISABLE,
@@ -150,13 +148,6 @@ void image_wave_demo() {
             .atten = ADC_ATTEN_DB_11,
         };
         adc_oneshot_config_channel(adc1_handle, VOLTAGE_ADC, &config);
-        //adc1_config_width(ADC_WIDTH_BIT_12);
-        // Correct adc channel for gpio
-        //adc1_config_channel_atten(VOLTAGE_ADC, ADC_ATTEN_DB_11);
-    //    esp_adc_cal_characteristics_t adc_chars;
-    //    esp_adc_cal_characterize(
-    //        (adc_unit_t)ADC_UNIT_1, (adc_atten_t)ADC_ATTEN_DB_11,
-    //        (adc_bits_width_t)ADC_WIDTH_BIT_12, 1100, &adc_chars);
         vref = 1100;//adc_chars.vref;
     }
     while (1) {
@@ -168,8 +159,6 @@ void image_wave_demo() {
             setFontColour(20, 0, 200);
             int raw;
             adc_oneshot_read(adc1_handle,VOLTAGE_ADC,&raw);
-           // (adc1_channel_t)VOLTAGE_ADC);
-          //  int v=esp_adc_cal_raw_to_voltage(raw, &adc_chars);
             float battery_voltage = ((float)raw / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
             snprintf(buff, 128, "%.2fV %d", battery_voltage, raw);
             setFontColour(0, 0, 0);
@@ -193,7 +182,11 @@ void image_wave_demo() {
         flip_frame();
         showfps();
         key_type key=get_input();
-        if(key==LEFT_DOWN) return;
+        if(key==LEFT_DOWN) {
+            if(DISPLAY_VOLTAGE)
+                adc_oneshot_del_unit(adc1_handle);
+            return;
+        }
     }
 }
 
