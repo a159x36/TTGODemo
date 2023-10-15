@@ -10,12 +10,12 @@
 
 // this code can draw any 3d object but mostly just a teapot.
 
-vec3f lightdir={0.577f,-0.577f,0.577f};
+const vec3f lightdir={0.577f,-0.577f,0.577f};
 float rmx[3][3];
 vec2f position={0,0};
-vec3f ambiant_colour={20,20,20};
+const vec3f ambient_colour={20,20,20};
 vec3f material_colour={20,220,40};
-vec3f light_colour={255,255,255};
+const vec3f light_colour={255,255,255};
 const float specularstrength=0.5f;
 
 // objects are drawn using some lists of quads sorted in z order.  
@@ -80,7 +80,7 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     spec=spec*spec;
     spec=specularstrength*spec;
     vec3f specular=mul3df(spec,light_colour);
-    vec3f res=add3d(ambiant_colour,add3d(diffuse,specular));
+    vec3f res=add3d(ambient_colour,add3d(diffuse,specular));
     uint16_t colour=rgbToColour(clampf(res.x,0,255),clampf(res.y,0,255),clampf(res.z,0,255));
     // use average z value for the quad as the list index.
     // so they are drawn with the closest last
