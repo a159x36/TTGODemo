@@ -85,7 +85,7 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     // use average z value for the quad as the list index.
     // so they are drawn with the closest last
     uint8_t zindex=((p0.z+p1.z+p2.z+p3.z)/4)+128;
-    quads[nquads++]=(quadtype){{p0.x,p0.y,p1.x,p1.y,p2.x,p2.y,p3.x,p3.y},
+    quads[nquads++]=(quadtype){{p0.x+0.5f,p0.y+0.5f,p1.x+0.5f,p1.y+0.5f,p2.x+0.5f,p2.y+0.5f,p3.x+0.5f,p3.y+0.5f},
                         colour,quad_lists[zindex]};
     quad_lists[zindex]=nquads-1;
 }

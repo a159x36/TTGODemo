@@ -28,10 +28,9 @@ const char *tag="T Display";
 
 
 void showfps() {
-    static uint64_t current_time=0;
     static uint64_t last_time=0;
     static int frame=0;
-    current_time = esp_timer_get_time();
+    uint64_t current_time = esp_timer_get_time();
     if ((frame++ % 20) == 1) {
         printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
         vTaskDelay(1);
@@ -86,41 +85,46 @@ typedef struct pos {
     int colour;
 } pos;
 
-
+static float last_star_time=0;
+void initstars(pos stars[NSTARS]) {
+    for(int i=0;i<NSTARS;i++) {
+        stars[i]=(pos){rand()%display_width,rand()%display_height,(rand()%512+64)/256.0,rand()};
+    }
+    last_star_time=esp_timer_get_time();
+}
+float drawstars(pos stars[NSTARS]) {
+    float dt;
+    uint64_t time=esp_timer_get_time();
+    dt=(time-last_star_time)/10000.0;
+    last_star_time=time;
+    for(int i=0;i<NSTARS;i++) {
+        draw_pixel(stars[i].x,stars[i].y,stars[i].colour);
+        stars[i].y += stars[i].speed*dt;
+        if(stars[i].y>=display_height) {
+            stars[i]=(pos){rand()%display_width,0,(rand()%512+64)/256.0,rand()};
+        }
+    }
+    return dt;
+}
 // simple spaceship and starfield demo
 void spaceship_demo() {
-    float x=display_width/2;
+    // x and it's derivatives
+    float x[]={display_width/2,0.2f,0.076f,0.003f};
+    float xmin[]={0,-3,-1};
+    float xmax[]={display_width-1,3,1};
     float y=display_height-spaceship_image.height/2;
-    float dx=.2;
-    float ddx=.02;
     pos stars[NSTARS];
-    for(int i=0;i<NSTARS;i++) {
-        stars[i].x=rand()%display_width;
-        stars[i].y=rand()%display_height;
-        stars[i].speed=(rand()%512+64)/256.0;
-        stars[i].colour=rand();
-    }
+    initstars(stars);
     while(1) {
         cls(0);
-        for(int i=0;i<NSTARS;i++) {
-            draw_pixel(stars[i].x,stars[i].y,stars[i].colour);
-            stars[i].y += stars[i].speed;
-            if(stars[i].y>=display_height) {
-                stars[i].x=rand()%display_width;
-                stars[i].y=0;
-                stars[i].speed=(rand()%512+64)/256.0;
+        drawstars(stars);
+        draw_image(&spaceship_image, x[0],y);
+        for(int i=0;i<(sizeof(x)/sizeof(x[0]))-1;i++) {
+            x[i]+=x[i+1];
+            if(x[i]<xmin[i] || x[i]>xmax[i]) {
+                x[i+1]=-x[i+1];
+                x[i]+=x[i+1];
             }
-        }
-        draw_image(&spaceship_image, x,y);
-        x=x+dx;
-        if(x<0 || x>=display_width) {
-            dx=-dx;
-            x+=dx;
-        }
-        dx+=ddx;
-        if(dx<-2 || dx>2) {
-            ddx=-ddx;
-            dx+=ddx;
         }
         flip_frame();
         showfps();
@@ -132,14 +136,12 @@ void spaceship_demo() {
 void image_wave_demo() {
     char buff[128];
     int frame = 0;
-    //sp_adc_cal_characteristics_t adc_chars;
     // voltage reference calibration for Battery ADC
     uint32_t vref;  
     adc_oneshot_unit_handle_t adc1_handle;
     if (DISPLAY_VOLTAGE) {
         gpio_set_direction(VOLTAGE_GPIO, GPIO_MODE_INPUT);
         // Configure ADC
-        
         adc_oneshot_unit_init_cfg_t init_config1 = {
             .unit_id = ADC_UNIT_1,
             .ulp_mode = ADC_ULP_MODE_DISABLE,
@@ -150,13 +152,6 @@ void image_wave_demo() {
             .atten = ADC_ATTEN_DB_11,
         };
         adc_oneshot_config_channel(adc1_handle, VOLTAGE_ADC, &config);
-        //adc1_config_width(ADC_WIDTH_BIT_12);
-        // Correct adc channel for gpio
-        //adc1_config_channel_atten(VOLTAGE_ADC, ADC_ATTEN_DB_11);
-    //    esp_adc_cal_characteristics_t adc_chars;
-    //    esp_adc_cal_characterize(
-    //        (adc_unit_t)ADC_UNIT_1, (adc_atten_t)ADC_ATTEN_DB_11,
-    //        (adc_bits_width_t)ADC_WIDTH_BIT_12, 1100, &adc_chars);
         vref = 1100;//adc_chars.vref;
     }
     while (1) {
@@ -168,8 +163,6 @@ void image_wave_demo() {
             setFontColour(20, 0, 200);
             int raw;
             adc_oneshot_read(adc1_handle,VOLTAGE_ADC,&raw);
-           // (adc1_channel_t)VOLTAGE_ADC);
-          //  int v=esp_adc_cal_raw_to_voltage(raw, &adc_chars);
             float battery_voltage = ((float)raw / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
             snprintf(buff, 128, "%.2fV %d", battery_voltage, raw);
             setFontColour(0, 0, 0);
@@ -183,7 +176,6 @@ void image_wave_demo() {
         tm_info = localtime(&time_now);
         struct timeval tv_now;
         gettimeofday(&tv_now, NULL);
-
         snprintf(buff, 128, "%2d:%02d:%02d:%03ld", tm_info->tm_hour,
                  tm_info->tm_min, tm_info->tm_sec, tv_now.tv_usec / 1000);
         setFontColour(0, 0, 0);
@@ -193,7 +185,11 @@ void image_wave_demo() {
         flip_frame();
         showfps();
         key_type key=get_input();
-        if(key==LEFT_DOWN) return;
+        if(key==LEFT_DOWN) {
+            if(DISPLAY_VOLTAGE)
+                adc_oneshot_del_unit(adc1_handle);
+            return;
+        }
     }
 }
 
@@ -258,12 +254,7 @@ void bubble_demo() {
     static char score_str[256];
     static pos stars[NSTARS];
     set_orientation(PORTRAIT);
-    for(int i=0;i<NSTARS;i++) {
-        stars[i].x=rand()%display_width;
-        stars[i].y=rand()%display_height;
-        stars[i].speed=(rand()%512+64)/256.0;
-        stars[i].colour=rand();
-    }
+    initstars(stars);
     obj ball;
     ball.x=display_width/2.0;
     ball.y=display_height/2.0;
@@ -280,30 +271,15 @@ void bubble_demo() {
     setFont(FONT_UBUNTU16);
     setFontColour(255, 255, 255);
     int keys[2]={1,1};
-    uint64_t last_time=esp_timer_get_time();
     while(1) {
         cls(rgbToColour(0,0,0));
-        for(int i=0;i<NSTARS;i++) {
-            draw_pixel(stars[i].x,stars[i].y,stars[i].colour);
-        }
+        float dt=drawstars(stars);
         draw_rectangle(bat.x,bat.y,bat.w,bat.h,-1);
         draw_image(&bubble,ball.x,ball.y);
         setFontColour(0, 255, 0);
         gprintf("Score: %d\n",score);
         setFontColour(100, 100, 155);
         gprintf("HiScore: %d\n",high_score);
-        float dt;
-        uint64_t time=esp_timer_get_time();
-        dt=(time-last_time)/10000.0; // hundredths of secs since boot;
-        last_time=time;
-        for(int i=0;i<NSTARS;i++) {
-            stars[i].y += stars[i].speed*dt;
-            if(stars[i].y>=display_height) {
-                stars[i].x=rand()%display_width;
-                stars[i].y=0;
-                stars[i].speed=(rand()%512+64)/256.0;
-            }
-        }
         ball.yvel-=2.0/16;
         ball.x+=ball.xvel*dt;
         ball.y-=ball.yvel*dt;
