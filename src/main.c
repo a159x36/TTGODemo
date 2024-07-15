@@ -109,7 +109,7 @@ void wifi_menu() {
 void graphics_menu() {
     int sel=0;
     while(1) {
-        char *entries[]={"Boids", "Life","Image Wave", "Spaceship", get_orientation()?"Landscape":"Portrait","Back"};
+        char *entries[]={"Boids", "Life","Image Wave", "Spaceship", "Teapots","Back"};
         sel=demo_menu("Graphics Menu",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
             case 0:
@@ -125,7 +125,7 @@ void graphics_menu() {
                 spaceship_demo();
                 break;
             case 4:
-                set_orientation(1-get_orientation());
+                teapots_demo();
                 break;
             case 5:
                 return;
@@ -133,6 +133,32 @@ void graphics_menu() {
     }
 }
 
+void pwm_menu() {
+    int sel=0;
+    while(1) {
+        char *entries[]={"LEDC Backlight","LEDC Servo","MCPWM Servo","GPIO Backlight","GPIO Servo","Back"};
+        sel=demo_menu("PWM Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        switch(sel) {
+            case 0:
+                ledc_backlight_demo();
+                break;
+            case 1:
+                ledc_servo_demo();
+                break;
+            case 2:
+                mcpwm_demo();
+                break;
+            case 3:
+                gpio_backlight_demo();
+                break;
+            case 4:
+                gpio_servo_demo();
+                break;
+            case 5:
+                return;
+        }
+    }
+}
 void network_menu() {
     int sel=0;
     while(1) {
@@ -187,7 +213,7 @@ void app_main() {
     int sel=0;
     while(1) {
         char *entries[]={"Graphics","Networking","Leds",
-                        "Teapots","Bubble Game",
+                        "PWM","Bubble Game",
                         get_orientation()?"Landscape":"Portrait"};
         sel=demo_menu("Demo",sizeof(entries)/sizeof(char *),entries,sel);
         switch(sel) {
@@ -201,7 +227,7 @@ void app_main() {
                 led_menu();
                 break;
             case 3:
-                teapots_demo();
+                pwm_menu();
                 break;
             case 4:
                 bubble_demo();

@@ -19,6 +19,11 @@ void mqtt_leds();
 void led_circles(void);
 void led_numbers(void);
 void led_cube(void);
+void ledc_backlight_demo(void);
+void ledc_servo_demo(void);
+void mcpwm_demo(void);
+void gpio_backlight_demo(void);
+void gpio_servo_demo(void);
 
 #define ARRAY_LENGTH(array) (sizeof((array))/sizeof((array)[0]))
 
