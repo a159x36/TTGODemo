@@ -39,7 +39,6 @@ void gpio_servo_demo(void);
 #endif
 #define DISPLAY_IMAGE_WAVE 1
 
-extern time_t time_now;
 extern struct tm *tm_info;
 extern int is_emulator;
 

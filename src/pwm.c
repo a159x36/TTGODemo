@@ -143,12 +143,9 @@ void gpio_backlight_demo(void) {
             duty+=20;
         if(duty<100) duty=100;
         if(duty>10000) duty=10000;
-        
-        while(esp_timer_get_time()<start+duty*100);
+        while(esp_timer_get_time()<start+duty);
         gpio_set_level(4,0);
-      //  cls(rgbToColour(0,0,100));
-      //  flip_frame();
-        ets_delay_us((10000-duty)*100);
+        ets_delay_us(10000-duty);
     }
 }
 
