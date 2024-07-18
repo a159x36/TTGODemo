@@ -220,7 +220,7 @@ void teapots_demo() {
     while(1) {
         cls(0);//rgbToColour(0x87,0xce,0xeb));
         for(int i=0;i<nteapots; i++) {
-            draw_teapot(pos[i],s[i],rot[i],col[i]);
+            draw_teapot(pos[i],s[i],rot[i],col[i],false);
             //draw_cube(pos[i],s[i],rot[i]);
             rot[i]=add3d(rot[i],(vec3f){0.0523,0.0354,0.0714});
         }

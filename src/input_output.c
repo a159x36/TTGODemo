@@ -145,7 +145,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
         by+=vby;
         if(bx<bubble.width/2 || bx+bubble.width/2>display_width) {vbx=-vbx;bx+=vbx;}
         if(by<bubble.height/2 || by+bubble.height/2>display_height) {vby=-vby;by+=vby;}
-        draw_teapot(pos,teapot_size,rotation,teapot_col);
+        draw_teapot(pos,teapot_size,rotation,teapot_col,true);
         rotation=add3d(rotation,(vec3f){0.011,0.019,0.017});
         if(rotation.x>2*PI) rotation.x-=2*PI;
         if(rotation.y>2*PI) rotation.y-=2*PI;

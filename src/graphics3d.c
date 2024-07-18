@@ -14,6 +14,7 @@ const vec3f lightdir={0.577f,-0.577f,0.577f};
 float rmx[3][3];
 vec2f position={0,0};
 const vec3f ambient_colour={20,20,20};
+float ambient_strength=0.25f;
 vec3f material_colour={20,220,40};
 const vec3f light_colour={255,255,255};
 const float specularstrength=0.5f;
@@ -80,7 +81,7 @@ void add_quad(vec3f p0, vec3f p1, vec3f p2, vec3f p3) {
     spec=spec*spec;
     spec=specularstrength*spec;
     vec3f specular=mul3df(spec,light_colour);
-    vec3f res=add3d(ambient_colour,add3d(diffuse,specular));
+    vec3f res=add3d(mul3df(ambient_strength,material_colour),add3d(diffuse,specular));
     uint16_t colour=rgbToColour(clampf(res.x,0,255),clampf(res.y,0,255),clampf(res.z,0,255));
     // use average z value for the quad as the list index.
     // so they are drawn with the closest last
@@ -200,7 +201,7 @@ void quad_free() {
 }
 
 
-void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
+void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col, int multicolour) {
 
     quad_init();
     material_colour=(vec3f){col.r,col.g,col.b};
@@ -216,11 +217,24 @@ void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col) {
 
     nquads=0;
     for(int ii=0;ii<32;ii++) {
+        if(multicolour)
+            material_colour=(vec3f){(ii&0x3)*64.0f+63,(ii/16)*128.0f,((ii&0xc)/4)*64.0f+63};
         // each patch is defined by 16 control points
         vec3f p[4][4];
         for(int j=0;j<4;j++) {
             for(int k=0;k<4; k++) {
-                p[j][k]=vrotate(teapotVertices[teapotPatches[ii][j*4+k]-1]);
+                vec3f vv=teapotVertices[teapotPatches[ii][j*4+k]-1];
+                if(ii>19&&ii<28) {
+                    vv.x*=1.077;
+                    vv.y*=1.077;
+                }
+                if(ii>15&&ii<18) {
+                    if(j==0)
+                        vv.x+=0.23;
+                    if(j==1)
+                        vv.z+=0.4;
+                }
+                p[j][k]=vrotate(vv);
             }
         }
         add_bezier_patch(p);

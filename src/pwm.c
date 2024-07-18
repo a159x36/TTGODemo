@@ -4,6 +4,7 @@
 #include <fonts.h>
 #include <esp_timer.h>
 #include <rom/ets_sys.h>
+#define CONFIG_MCPWM_SUPPRESS_DEPRECATE_WARN 1
 #include <driver/mcpwm.h>
 #include "input_output.h"
 
