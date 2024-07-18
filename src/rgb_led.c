@@ -109,3 +109,7 @@ int IRAM_ATTR digitalLeds_updatePixels(strand_t * pStrand) {
   esp_err_t err=rmt_write_sample(pStrand->rmt_config.channel, (uint8_t *)(pStrand->pixels), pStrand->numPixels * 3, true);
   return err;
 }
+
+void digitalLeds_free(strand_t * pStrand) {
+  free(pStrand->pixels);
+}

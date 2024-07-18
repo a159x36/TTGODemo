@@ -49,6 +49,7 @@ extern const ledParams_t ledParamsAll[];
 extern int digitalLeds_initStrands(strand_t strands [], int numStrands);
 extern int digitalLeds_updatePixels(strand_t * strand);
 extern void digitalLeds_resetPixels(strand_t * pStrand);
+extern void digitalLeds_free(strand_t * pStrand);
 
 #endif /* ESP32_DIGITAL_LED_LIB_H */
 

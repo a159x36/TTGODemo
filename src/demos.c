@@ -149,7 +149,7 @@ void image_wave_demo() {
         ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
         adc_oneshot_chan_cfg_t config = {
             .bitwidth = ADC_BITWIDTH_12,
-            .atten = ADC_ATTEN_DB_11,
+            .atten = ADC_ATTEN_DB_12,
         };
         adc_oneshot_config_channel(adc1_handle, VOLTAGE_ADC, &config);
         vref = 1100;//adc_chars.vref;
@@ -509,6 +509,7 @@ void mqtt_leds() {
      //    if(!gpio_get_level(35)) delay++;
          if(delay<0) delay=0;
      }
+     digitalLeds_free(&STRAND);
      mqtt_disconnect();
 }
 void led_instructions() {
@@ -550,6 +551,7 @@ void led_numbers(void) {
         digitalLeds_updatePixels(pStrand);
         ets_delay_us(delay*100);
     }
+    digitalLeds_free(pStrand);
 }
 
 void led_cube(void) {
@@ -584,6 +586,7 @@ void led_cube(void) {
         ets_delay_us(delay*100);
         showfps();
     }
+    digitalLeds_free(pStrand);
 }
 
 void led_circles(void) {
@@ -620,4 +623,5 @@ void led_circles(void) {
         if(delay<0) delay=0;
         showfps();
     }
+    digitalLeds_free(pStrand);
 }

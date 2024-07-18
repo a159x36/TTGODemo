@@ -21,7 +21,7 @@
 #include <esp_http_server.h>
 #include "mqtt_client.h"
 #include <driver/touch_pad.h>
-#include "esp_wpa2.h"
+#include "esp_eap_client.h"
 
 #include "graphics3d.h"
 #include "input_output.h"
@@ -138,9 +138,9 @@ void init_wifi(wifi_mode_type mode) {
         strncpy((char *)wifi_config.sta.password,password,sizeof(wifi_config.sta.password));
         ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
         if(strlen(username)!=0) {
-            ESP_ERROR_CHECK( esp_wifi_sta_wpa2_ent_set_username((uint8_t *)username, strlen(username)) );
-            ESP_ERROR_CHECK( esp_wifi_sta_wpa2_ent_set_password((uint8_t *)password, strlen(password)) );
-            ESP_ERROR_CHECK( esp_wifi_sta_wpa2_ent_enable() );
+            ESP_ERROR_CHECK( esp_eap_client_set_username((uint8_t *)username, strlen(username)) );
+            ESP_ERROR_CHECK( esp_eap_client_set_password((uint8_t *)password, strlen(password)) );
+            ESP_ERROR_CHECK( esp_wifi_sta_enterprise_enable() );
         }
     }
 
