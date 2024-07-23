@@ -4,8 +4,7 @@
 #include <fonts.h>
 #include <esp_timer.h>
 #include <rom/ets_sys.h>
-#define CONFIG_MCPWM_SUPPRESS_DEPRECATE_WARN 1
-#include <driver/mcpwm.h>
+#include <driver/mcpwm_prelude.h>
 #include "input_output.h"
 
 void ledc_backlight_demo(void) {
@@ -102,15 +101,38 @@ void ledc_servo_demo(void) {
 }
 
 void mcpwm_demo(void) {
-
-    mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, 27);
-    mcpwm_config_t pwm_config;
-    pwm_config.frequency = 50;    //50Hz = 20ms period
-    pwm_config.cmpr_a = 1500;    //duty cycle of PWMxA = 0
-    pwm_config.cmpr_b = 0;    //duty cycle of PWMxB = 0
-    pwm_config.counter_mode = MCPWM_UP_COUNTER;
-    pwm_config.duty_mode = MCPWM_DUTY_MODE_0;
-    mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &pwm_config);
+    mcpwm_timer_handle_t timer = NULL;
+    mcpwm_timer_config_t timer_config = {
+        .group_id = 0,
+        .clk_src = MCPWM_TIMER_CLK_SRC_DEFAULT,
+        .resolution_hz = 1000000,
+        .period_ticks = 20000,
+        .count_mode = MCPWM_TIMER_COUNT_MODE_UP,
+    };
+    ESP_ERROR_CHECK(mcpwm_new_timer(&timer_config, &timer));
+    mcpwm_oper_handle_t oper = NULL;
+    mcpwm_operator_config_t operator_config = {
+        .group_id = 0, // operator must be in the same group to the timer
+    };
+    ESP_ERROR_CHECK(mcpwm_new_operator(&operator_config, &oper));
+    ESP_ERROR_CHECK(mcpwm_operator_connect_timer(oper, timer));
+    mcpwm_cmpr_handle_t comparator = NULL;
+    mcpwm_comparator_config_t comparator_config = {
+        .flags.update_cmp_on_tez = true,
+    };
+    ESP_ERROR_CHECK(mcpwm_new_comparator(oper, &comparator_config, &comparator));
+    mcpwm_gen_handle_t generator = NULL;
+    mcpwm_generator_config_t generator_config = {
+        .gen_gpio_num = 27,
+    };
+    ESP_ERROR_CHECK(mcpwm_new_generator(oper, &generator_config, &generator));
+    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, 2000));
+    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(generator,
+                    MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, MCPWM_TIMER_EVENT_EMPTY, MCPWM_GEN_ACTION_HIGH)));
+    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(generator,
+                    MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP, comparator, MCPWM_GEN_ACTION_LOW)));
+    ESP_ERROR_CHECK(mcpwm_timer_enable(timer));
+    ESP_ERROR_CHECK(mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP));
     int duty=1500; 
     while(1) {
         cls(rgbToColour(0,0,100));
@@ -123,8 +145,7 @@ void mcpwm_demo(void) {
             duty+=20;
         if(duty<1000) duty=1000;
         if(duty>2000) duty=2000;
-        mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0,
-                             MCPWM_OPR_A, duty);
+        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(comparator, duty));
     }
 }
 void gpio_backlight_demo(void) {

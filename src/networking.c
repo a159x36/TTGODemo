@@ -23,7 +23,6 @@
 #include "mqtt_client.h"
 #include "FreeSansBold24pt7b.h"
 #include <driver/touch_pad.h>
-#include "esp_wpa2.h"
 
 #include "graphics3d.h"
 #include "input_output.h"
