@@ -10,7 +10,7 @@
 void ledc_backlight_demo(void) {
     const int timer_res=10;
     const int res_max=1<<timer_res;
-    const int mode=LEDC_SPEED_MODE_MAX;
+    const int mode=LEDC_LOW_SPEED_MODE;
     const int channel=LEDC_CHANNEL_1;
     ledc_timer_config_t ledc_timer = {
         .duty_resolution = timer_res, // resolution of PWM duty
@@ -61,7 +61,7 @@ void ledc_backlight_demo(void) {
 void ledc_servo_demo(void) {
     const int timer_res=13;
     const int res_max=1<<timer_res;
-    const int mode=LEDC_SPEED_MODE_MAX;
+    const int mode=LEDC_LOW_SPEED_MODE;
     const int channel=LEDC_CHANNEL_7;
     ledc_timer_config_t ledc_timer = {
         .duty_resolution = timer_res, // resolution of PWM duty
