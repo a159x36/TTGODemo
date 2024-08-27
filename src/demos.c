@@ -86,13 +86,13 @@ typedef struct pos {
 } pos;
 
 static float last_star_time=0;
-void initstars(pos stars[NSTARS]) {
+void initstars(pos *stars) {
     for(int i=0;i<NSTARS;i++) {
         stars[i]=(pos){rand()%display_width,rand()%display_height,(rand()%512+64)/256.0,rand()};
     }
     last_star_time=esp_timer_get_time();
 }
-float drawstars(pos stars[NSTARS]) {
+float drawstars(pos *stars) {
     float dt;
     uint64_t time=esp_timer_get_time();
     dt=(time-last_star_time)/10000.0;
@@ -113,7 +113,7 @@ void spaceship_demo() {
     float xmin[]={0,-3,-1};
     float xmax[]={display_width-1,3,1};
     float y=display_height-spaceship_image.height/2;
-    pos stars[NSTARS];
+    pos * stars=malloc(sizeof(pos)*NSTARS);
     initstars(stars);
     while(1) {
         cls(0);
@@ -129,7 +129,10 @@ void spaceship_demo() {
         flip_frame();
         showfps();
         key_type key=get_input();
-        if(key==LEFT_DOWN) return;
+        if(key==LEFT_DOWN) {
+            free(stars);
+            return;
+        }
     }
 }
 // waving image demo showing time
@@ -198,6 +201,7 @@ void teapots_demo() {
     vec3f rot[nteapots];
     vec2f pos[nteapots];
     int s[nteapots];
+    vec3f spin[nteapots];
     colourtype col[nteapots];
     for(int i=0;i<nteapots; i++) {
         rot[i]=(vec3f){(rand()%31415)/5000.0,
@@ -208,13 +212,16 @@ void teapots_demo() {
         col[i]=(colourtype){rand()%100+155,
                 rand()%100+155,
                 rand()%100+155};
+        spin[i]=(vec3f){(rand()%10000-5000)/100000.0,
+                (rand()%10000-5000)/100000.0,
+                (rand()%10000-5000)/100000.0};
         int m=rand()%8;
         if(m==7) m=0;
         if(m&1) col[i].r/=8;
         if(m&2) col[i].g/=8;
         if(m&4) col[i].b/=8;
         
-        s[i]=rand()%20+20;
+        s[i]=rand()%20+10;
         //if((i&7)==0) col[i].g=100;
     }
     while(1) {
@@ -222,7 +229,7 @@ void teapots_demo() {
         for(int i=0;i<nteapots; i++) {
             draw_teapot(pos[i],s[i],rot[i],col[i],false);
             //draw_cube(pos[i],s[i],rot[i]);
-            rot[i]=add3d(rot[i],(vec3f){0.0523,0.0354,0.0714});
+            rot[i]=add3d(rot[i],spin[i]);
         }
         flip_frame();
         showfps();
@@ -251,8 +258,8 @@ extern image_header  bubble;
 void bubble_demo() {
     static int high_score=0;
     high_score=storage_read_int("highscore",0);
-    static char score_str[256];
-    static pos stars[NSTARS];
+    pos * stars=malloc(sizeof(pos)*NSTARS);
+    char score_str[256];
     set_orientation(PORTRAIT);
     initstars(stars);
     obj ball;
@@ -360,6 +367,7 @@ void bubble_demo() {
     while(get_input());
     while(get_input()!=RIGHT_DOWN)
         vTaskDelay(1);
+    free(stars);
 }
 
 int colR=1,colG=128,colB=1;

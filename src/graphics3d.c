@@ -21,7 +21,7 @@ const float specularstrength=0.5f;
 
 // objects are drawn using some lists of quads sorted in z order.  
 typedef  struct quadtype {uint16_t p[8]; uint16_t col; uint16_t next;}  __attribute__ ((packed)) quadtype;
-#define MAXQUADS 24*32*4
+#define MAXQUADS 16*32*4
 
 int nquads;
 quadtype *quads;

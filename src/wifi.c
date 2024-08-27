@@ -65,18 +65,19 @@ int wifi_connected() {
 }
 
 void wifi_disconnect() {
+
     if(network_interface!=NULL) {
         if(wifi_connected()) {
             esp_wifi_disconnect();
             while(wifi_connected());
         }
         esp_wifi_stop();
-        esp_wifi_deinit();
-        esp_event_loop_delete_default();
-        esp_wifi_clear_default_wifi_driver_and_handlers(network_interface);
-        esp_netif_destroy(network_interface);
-        esp_netif_deinit();
-        network_interface=NULL;
+     //   esp_wifi_deinit();
+     //   esp_event_loop_delete_default();
+     //   esp_wifi_clear_default_wifi_driver_and_handlers(network_interface);
+     //   esp_netif_destroy(network_interface);
+       // esp_netif_deinit();
+       // network_interface=NULL;
     }
 }
 void init_wifi(wifi_mode_type mode) {
@@ -89,25 +90,27 @@ void init_wifi(wifi_mode_type mode) {
     wifi_mode=mode;
     if(network_interface!=NULL) {
         esp_wifi_stop();
-        esp_wifi_deinit();
-        esp_event_loop_delete_default();
-        esp_wifi_clear_default_wifi_driver_and_handlers(network_interface);
-        esp_netif_destroy(network_interface);
-        esp_netif_deinit();
+    //    esp_wifi_deinit();
+    //    esp_event_loop_delete_default();
+    //    esp_wifi_clear_default_wifi_driver_and_handlers(network_interface);
+    //    esp_netif_destroy(network_interface);
+       // esp_netif_deinit();
        // network_interface=NULL;
     }
-    esp_netif_init();
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-    if(mode==ACCESS_POINT)
-        network_interface = esp_netif_create_default_wifi_ap();
-    else
-        network_interface = esp_netif_create_default_wifi_sta();
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL) );
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL) );
-    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    if(network_interface==NULL) {
+        esp_netif_init();
+        ESP_ERROR_CHECK(esp_event_loop_create_default());
+        if(mode==ACCESS_POINT)
+            network_interface = esp_netif_create_default_wifi_ap();   
+        else
+            network_interface = esp_netif_create_default_wifi_sta();    
+    
+        wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+        ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+        ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL) );
+        ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL) );
+        ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    }
 
     uint8_t protocol=(WIFI_PROTOCOL_11B|WIFI_PROTOCOL_11G|WIFI_PROTOCOL_11N);//|WIFI_PROTOCOL_LR);
     if(mode==ACCESS_POINT) {
@@ -262,8 +265,8 @@ void wifi_scan(int setap) {
     cls(0);
     init_wifi(SCAN);
     uint16_t number = DEFAULT_SCAN_LIST_SIZE;
-    static wifi_ap_record_t ap_info[DEFAULT_SCAN_LIST_SIZE];
-    static wifi_ap_record_t ap_list[DEFAULT_SCAN_LIST_SIZE];
+    wifi_ap_record_t *ap_info=malloc(sizeof(wifi_ap_record_t)*DEFAULT_SCAN_LIST_SIZE);
+    wifi_ap_record_t *ap_list=malloc(sizeof(wifi_ap_record_t)*DEFAULT_SCAN_LIST_SIZE);
     memset(ap_info, 0, sizeof(ap_info));
     setFont(FONT_UBUNTU16);
     setFontColour(255,255,255);
@@ -317,6 +320,8 @@ void wifi_scan(int setap) {
                 storage_write_string("ssid",(char *)ap_name);
             }
             //esp_wifi_scan_stop();
+            free(ap_list);
+            free(ap_info);
             return;
         }
     } while(true);

@@ -63,11 +63,11 @@ typedef struct sphere {
 } sphere;
 
 
-const char *mmenu[]={"Exit","Boids","Objects","Cohesion","Alignment","Separation","Predators",NULL};
-const char *bmenu[]={"Exit","100","200","400","800",NULL};
-const char *smenu[]={"Exit","0","1","2","3",NULL};
-const char *casmenu[]={"Exit","0.01","0.02","0.04","0.08","0.1","0.2","0.5","0.8","1.6","3.0",NULL};
-const char **menus[]={mmenu,bmenu,smenu,casmenu,casmenu,casmenu,smenu};
+const char * const mmenu[]={"Exit","Boids","Objects","Cohesion","Alignment","Separation","Predators",NULL};
+const char * const bmenu[]={"Exit","100","200","400","800",NULL};
+const char * const smenu[]={"Exit","0","1","2","3",NULL};
+const char * const casmenu[]={"Exit","0.01","0.02","0.04","0.08","0.1","0.2","0.5","0.8","1.6","3.0",NULL};
+const char * const * const menus[]={mmenu,bmenu,smenu,casmenu,casmenu,casmenu,smenu}; 
 
 int menu_no=-1;
 int sel=0;

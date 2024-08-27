@@ -96,7 +96,7 @@ void event_handler(void *arg, esp_event_base_t event_base,
     }
 }
 
-extern char *main_page_html;
+extern const char * const main_page_html;
 
 esp_err_t get_handler(httpd_req_t *req)
 {
