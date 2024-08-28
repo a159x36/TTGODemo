@@ -259,7 +259,7 @@ void wifi_scan(int setap) {
     uint16_t number = DEFAULT_SCAN_LIST_SIZE;
     wifi_ap_record_t *ap_info=malloc(sizeof(wifi_ap_record_t)*DEFAULT_SCAN_LIST_SIZE);
     wifi_ap_record_t *ap_list=malloc(sizeof(wifi_ap_record_t)*DEFAULT_SCAN_LIST_SIZE);
-    memset(ap_info, 0, sizeof(ap_info));
+    memset(ap_info, 0, sizeof(wifi_ap_record_t)*DEFAULT_SCAN_LIST_SIZE);
     setFont(FONT_UBUNTU16);
     setFontColour(255,255,255);
     print_xy("Scanning...",5,3);
