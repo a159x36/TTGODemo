@@ -13,6 +13,7 @@ extern wifi_mode_type wifi_mode;
 #define CONNECTED_BIT 1
 #define AUTH_FAIL 2
 extern esp_netif_t *network_interface;
+extern esp_netif_t *network_interface_ap;
 extern char network_event[64];
 extern int bg_col;
 

@@ -35,6 +35,7 @@ char network_event[64];
 #define TAG "Networking"
 int bg_col=0;
 esp_netif_t *network_interface = NULL;
+esp_netif_t *network_interface_ap = NULL;
 
 void set_event_message(const char *s) {
     snprintf(network_event,sizeof(network_event),"%s\n",s);
@@ -132,7 +133,7 @@ void webserver(void) {
         setFontColour(255,255,0);
         draw_rectangle(0,0,display_width,display_height,bg_col);
         esp_netif_ip_info_t ip_info;
-        esp_netif_get_ip_info(network_interface,&ip_info);
+        esp_netif_get_ip_info(network_interface_ap,&ip_info);
         gprintf("Web Server\nConnect to the ESP 32\nAccess Point and go to\nhttp://"IPSTR"/\nor http://localhost:16555/\non the emulator",IP2STR(&ip_info.ip));
         setFont(FONT_SMALL);
         setFontColour(255,255,255);

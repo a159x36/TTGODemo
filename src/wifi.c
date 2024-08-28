@@ -90,20 +90,12 @@ void init_wifi(wifi_mode_type mode) {
     wifi_mode=mode;
     if(network_interface!=NULL) {
         esp_wifi_stop();
-    //    esp_wifi_deinit();
-    //    esp_event_loop_delete_default();
-    //    esp_wifi_clear_default_wifi_driver_and_handlers(network_interface);
-    //    esp_netif_destroy(network_interface);
-       // esp_netif_deinit();
-       // network_interface=NULL;
     }
     if(network_interface==NULL) {
         esp_netif_init();
         ESP_ERROR_CHECK(esp_event_loop_create_default());
-        if(mode==ACCESS_POINT)
-            network_interface = esp_netif_create_default_wifi_ap();   
-        else
-            network_interface = esp_netif_create_default_wifi_sta();    
+        network_interface_ap = esp_netif_create_default_wifi_ap();   
+        network_interface = esp_netif_create_default_wifi_sta();    
     
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
         ESP_ERROR_CHECK(esp_wifi_init(&cfg));
