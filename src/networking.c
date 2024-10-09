@@ -79,6 +79,7 @@ void event_handler(void *arg, esp_event_base_t event_base,
             //     esp_wifi_connect();
             break;
         case WIFI_EVENT_SCAN_DONE:
+            ESP_LOGI(tag, "WiFi Scan Done");
             esp_wifi_scan_start(NULL, false);
             break;
         }
