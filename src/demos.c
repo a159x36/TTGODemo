@@ -512,7 +512,7 @@ void mqtt_leds() {
          v=(v+1)%30;
          digitalLeds_updatePixels(&STRAND);
 //         vTaskDelay(delay);
-         ets_delay_us(delay*100);
+         delay_us(delay*100);
      //    if(!gpio_get_level(0)) delay--;
      //    if(!gpio_get_level(35)) delay++;
          if(delay<0) delay=0;
@@ -557,7 +557,7 @@ void led_numbers(void) {
                 pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(r/2, g/2, b/2);
             }
         digitalLeds_updatePixels(pStrand);
-        ets_delay_us(delay*100);
+        delay_us(delay*100);
     }
     digitalLeds_free(pStrand);
 }
@@ -591,7 +591,7 @@ void led_cube(void) {
                 pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(rr/8, gg/8, bb/8);
             }
         digitalLeds_updatePixels(pStrand);
-        ets_delay_us(delay*100);
+        delay_us(delay*100);
         showfps();
     }
     digitalLeds_free(pStrand);
@@ -625,7 +625,7 @@ void led_circles(void) {
         }
         digitalLeds_updatePixels(pStrand);
         offset-=0.1f;
-        ets_delay_us(delay*100);
+        delay_us(delay*100);
         if(!gpio_get_level(0)) delay--;
         if(!gpio_get_level(35)) delay++;
         if(delay<0) delay=0;

@@ -43,6 +43,11 @@ int keyrepeat=1;
 
 static int button_val[2]={1,1};
 
+void delay_us(int delay) {
+    int64_t future=esp_timer_get_time()+delay;
+    while(esp_timer_get_time()<future);
+}
+
 int read_touch(int t) {
     #ifdef TTGO_S3
     uint32_t touch_value;

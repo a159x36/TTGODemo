@@ -72,6 +72,7 @@ void led_menu() {
                 break;
             case 3:
                 led_cube();
+                break;
             case 4:
                 return;
         }

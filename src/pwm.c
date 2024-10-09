@@ -3,7 +3,7 @@
 #include <graphics.h>
 #include <fonts.h>
 #include <esp_timer.h>
-#include <rom/ets_sys.h>
+//#include <rom/ets_sys.h>
 #include <driver/mcpwm_prelude.h>
 #include "input_output.h"
 
@@ -12,6 +12,13 @@
 #else
 #define SERVO_PIN 27
 #endif
+
+void display_duty(int duty) {
+    cls(rgbToColour(0,0,100));
+    setFont(FONT_DEJAVU24);
+    gprintf("Duty: %d",duty);
+    flip_frame();
+}
 
 
 void ledc_backlight_demo(void) {
@@ -41,13 +48,9 @@ void ledc_backlight_demo(void) {
     ledc_fade_func_install(0);
     int on=1;
     while(1) {
-        cls(rgbToColour(0,0,100));
-        setFont(FONT_DEJAVU24);
         int duty=ledc_get_duty(mode,channel);
-        gprintf("%d",duty);
-        flip_frame();
+        display_duty(duty);
         key_type key=get_input();
-        
         if(key==RIGHT_DOWN) {
             if(on && duty==max) {
                 ledc_set_fade_with_time(mode, channel, min,1000);
@@ -60,9 +63,12 @@ void ledc_backlight_demo(void) {
                     on=1;
                 }
             }
-            
         }
-        if(key==LEFT_DOWN) return;
+        if(key==LEFT_DOWN) {
+            ledc_set_duty_and_update(mode,channel,max,0);
+            ledc_fade_func_uninstall();
+            return;
+        }
     }
 }
 void ledc_servo_demo(void) {
@@ -91,10 +97,7 @@ void ledc_servo_demo(void) {
     ledc_fade_func_install(0);
     int on=1;
     while(1) {
-        cls(rgbToColour(0,0,100));
-        setFont(FONT_DEJAVU24);
-        gprintf("%d",ledc_get_duty(mode,channel));
-        flip_frame();
+        display_duty(ledc_get_duty(mode,channel));
         key_type key=get_input();
         if(key==RIGHT_DOWN) {
             on=!on;
@@ -141,10 +144,7 @@ void mcpwm_demo(void) {
     mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP);
     int duty=1500; 
     while(1) {
-        cls(rgbToColour(0,0,100));
-        setFont(FONT_DEJAVU24);
-        gprintf("%d",duty);
-        flip_frame();
+        display_duty(duty);
         key_type key=get_input();
         if(key==LEFT_DOWN) return;
         if(key==RIGHT_DOWN) {
@@ -155,26 +155,24 @@ void mcpwm_demo(void) {
         mcpwm_comparator_set_compare_value(comparator, duty);
     }
 }
+
+
 void gpio_backlight_demo(void) {
     int64_t duty=5000;
     gpio_set_direction(PIN_NUM_BCKL, GPIO_MODE_OUTPUT);
     while(1) {
         int64_t start=esp_timer_get_time();
         gpio_set_level(PIN_NUM_BCKL,1);
-        cls(rgbToColour(0,0,100));
-        setFont(FONT_DEJAVU24);
-        gprintf("%d",(int)duty);
-        flip_frame();
+        display_duty((int)duty);
         key_type key=get_input();
         if(key==LEFT_DOWN) return;
         if(key==RIGHT_DOWN) {
             duty=duty+1000;
+            if(duty>10000) duty=1000;
         }
-//        if(duty<1000) duty=1000;
-        if(duty>10000) duty=1000;
         while(esp_timer_get_time()<start+duty);
         gpio_set_level(PIN_NUM_BCKL,0);
-        ets_delay_us(10000-duty);
+        delay_us(10000-duty);
     }
 }
 
@@ -182,19 +180,16 @@ void gpio_servo_demo(void) {
     int duty=1000;
     gpio_set_direction(SERVO_PIN, GPIO_MODE_OUTPUT);
     while(1) {
-        cls(rgbToColour(0,0,100));
-        setFont(FONT_DEJAVU24);
-        gprintf("%d",duty);
-        flip_frame();
+        display_duty(duty);
         key_type key=get_input();
         if(key==LEFT_DOWN) return;
         if(key==RIGHT_DOWN) {
             duty=duty+100;
+            if(duty>2000) duty=1000;
         }
-        if(duty>2000) duty=1000;
         gpio_set_level(SERVO_PIN,1);
-        ets_delay_us(duty);
+        delay_us(duty);
         gpio_set_level(SERVO_PIN,0);
-        ets_delay_us((20000-duty));
+        delay_us((20000-duty));
     }
 }
