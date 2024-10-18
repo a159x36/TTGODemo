@@ -33,7 +33,7 @@ void showfps() {
     uint64_t current_time = esp_timer_get_time();
     if ((frame++ % 20) == 1) {
         printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
-        vTaskDelay(1);
+        vTaskDelay(0);
     }
     last_time=current_time;
 }
@@ -366,7 +366,7 @@ void bubble_demo() {
     vTaskDelay(500/portTICK_PERIOD_MS);
     while(get_input());
     while(get_input()!=RIGHT_DOWN)
-        vTaskDelay(1);
+        vTaskDelay(100/portTICK_PERIOD_MS);
     free(stars);
 }
 

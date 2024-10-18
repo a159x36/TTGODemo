@@ -219,7 +219,7 @@ void web_client(void) {
         r = jd_decomp(&decoder, jpg_write, 1);
     free(work);
     flip_frame();
-    while(get_input()!=RIGHT_DOWN) vTaskDelay(100);
+    while(get_input()!=RIGHT_DOWN) vTaskDelay(100/portTICK_PERIOD_MS);
 }
 
 esp_mqtt_client_handle_t mqtt_client = NULL;

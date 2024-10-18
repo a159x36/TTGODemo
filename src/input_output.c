@@ -190,7 +190,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
             printf("FPS:%f %d %d\n", 1.0e6 / (current_time - last_time),
                 heap_caps_get_free_size(MALLOC_CAP_DMA),
                 heap_caps_get_free_size(MALLOC_CAP_32BIT));
-                vTaskDelay(1);
+                vTaskDelay(0);
         }
         last_time = current_time;
         key_type key=get_input();
