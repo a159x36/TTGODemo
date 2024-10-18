@@ -13,10 +13,16 @@
 #define SERVO_PIN 27
 #endif
 
-void display_duty(int duty) {
+void display_duty(int duty, bool servo) {
     cls(rgbToColour(0,0,100));
+    if(servo) {
+        setFontColour(255,255,0);
+        setFont(FONT_DEJAVU18);
+        gprintf("Attach servo to pin %d\nor switch to servo window\non emulator\n\n",SERVO_PIN);
+    }
+    setFontColour(255,255,255);
     setFont(FONT_DEJAVU24);
-    gprintf("Duty: %d",duty);
+    gprintf("Duty:%d",duty);
     flip_frame();
 }
 
@@ -49,7 +55,7 @@ void ledc_backlight_demo(void) {
     int on=1;
     while(1) {
         int duty=ledc_get_duty(mode,channel);
-        display_duty(duty);
+        display_duty(duty,false);
         key_type key=get_input();
         if(key==RIGHT_DOWN) {
             if(on && duty==max) {
@@ -97,7 +103,7 @@ void ledc_servo_demo(void) {
     ledc_fade_func_install(0);
     int on=1;
     while(1) {
-        display_duty(ledc_get_duty(mode,channel));
+        display_duty(ledc_get_duty(mode,channel),true);
         key_type key=get_input();
         if(key==RIGHT_DOWN) {
             on=!on;
@@ -144,7 +150,7 @@ void mcpwm_demo(void) {
     mcpwm_timer_start_stop(timer, MCPWM_TIMER_START_NO_STOP);
     int duty=1500; 
     while(1) {
-        display_duty(duty);
+        display_duty(duty,true);
         key_type key=get_input();
         if(key==LEFT_DOWN) return;
         if(key==RIGHT_DOWN) {
@@ -163,7 +169,7 @@ void gpio_backlight_demo(void) {
     while(1) {
         int64_t start=esp_timer_get_time();
         gpio_set_level(PIN_NUM_BCKL,1);
-        display_duty((int)duty);
+        display_duty((int)duty,false);
         key_type key=get_input();
         if(key==LEFT_DOWN) return;
         if(key==RIGHT_DOWN) {
@@ -180,7 +186,7 @@ void gpio_servo_demo(void) {
     int duty=1000;
     gpio_set_direction(SERVO_PIN, GPIO_MODE_OUTPUT);
     while(1) {
-        display_duty(duty);
+        display_duty(duty,true);
         key_type key=get_input();
         if(key==LEFT_DOWN) return;
         if(key==RIGHT_DOWN) {
