@@ -186,11 +186,11 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
         #endif
         flip_frame();
         current_time = esp_timer_get_time();
-        if ((frame++ % 10) == 0) {
+        if ((frame++ % 5) == 0) {
             printf("FPS:%f %d %d\n", 1.0e6 / (current_time - last_time),
                 heap_caps_get_free_size(MALLOC_CAP_DMA),
                 heap_caps_get_free_size(MALLOC_CAP_32BIT));
-                vTaskDelay(0);
+                vTaskDelay(1);
         }
         last_time = current_time;
         key_type key=get_input();

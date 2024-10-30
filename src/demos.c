@@ -33,7 +33,7 @@ void showfps() {
     uint64_t current_time = esp_timer_get_time();
     if ((frame++ % 20) == 1) {
         printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
-        vTaskDelay(0);
+        vTaskDelay(1);
     }
     last_time=current_time;
 }
