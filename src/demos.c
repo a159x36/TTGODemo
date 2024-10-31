@@ -23,6 +23,7 @@
 #include "rgb_led.h"
 #include "networking.h"
 #include <mqtt_client.h>
+#include "accelerometer.h"
 
 const char *tag="T Display";
 
@@ -632,4 +633,23 @@ void led_circles(void) {
         showfps();
     }
     digitalLeds_free(pStrand);
+}
+
+void accel_demo(void) {
+    int x,y;
+    pos *stars=malloc(sizeof(pos)*NSTARS);
+    initstars(stars);
+    mpu6050_init();
+    while(1) {
+        cls(0);
+        drawstars(stars);
+        int16_t buf[7];
+        read_mpu6050(buf);
+        x=(display_width*buf[0])/(16384*2)+display_width/2;
+        y=-(display_height*buf[1])/(16384*2)+display_height/2;
+        draw_image(&bubble, x,y);
+        flip_frame();
+        int key=get_input();
+        if(key==LEFT_DOWN) return;
+    }
 }

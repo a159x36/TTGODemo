@@ -24,6 +24,7 @@ void ledc_servo_demo(void);
 void mcpwm_demo(void);
 void gpio_backlight_demo(void);
 void gpio_servo_demo(void);
+void accel_demo(void);
 
 #define ARRAY_LENGTH(array) (sizeof((array))/sizeof((array)[0]))
 
