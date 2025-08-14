@@ -27,14 +27,19 @@
 #define NACK_VAL 0x1                /*!< I2C nack value */
 
 #define MPU6050_ADDR 0x68
+
+#ifdef TTGO_S3
+#define VCC 43
+#define GND 44
+#define SCL 18
+#define SDA 17
+#else
 #define VCC 32
 #define GND 33
-#ifdef TTGO_S3
-#define SCL 27
-#else
 #define SCL 25
-#endif
 #define SDA 26
+#endif
+
 
 
 
@@ -88,10 +93,12 @@ void read_mpu6050(int16_t *buf) {
         ESP_LOGI(tag, "read %d %d %d %d %d %d %d\n",buf[0],buf[1],buf[2],buf[3],buf[4],buf[5],buf[6]);
 }
 
+
 void mpu6050_init() {
-    gpio_set_direction(GND,GPIO_MODE_OUTPUT);
+    static bool driver_installed=false;
+    gpio_config_t cfg={.mode=GPIO_MODE_OUTPUT,.pin_bit_mask=(1ULL<<GND)| (1ULL<<VCC)};
+    gpio_config(&cfg);
     gpio_set_level(GND,0);
-    gpio_set_direction(VCC,GPIO_MODE_OUTPUT);
     gpio_set_level(VCC,1);
     i2c_config_t conf;
     conf.mode = I2C_MODE_MASTER;
@@ -101,12 +108,15 @@ void mpu6050_init() {
     ESP_LOGI(tag, "scl_io_num %d", SCL);
     conf.scl_io_num = SCL;
     conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-    conf.master.clk_speed = 200000;
+    conf.master.clk_speed = 1000000;
     conf.clk_flags = I2C_SCLK_SRC_FLAG_FOR_NOMAL;
     ESP_LOGI(tag, "i2c_param_config %d", conf.mode);
     ESP_ERROR_CHECK(i2c_param_config(I2C_NUM_0, &conf));
     ESP_LOGI(tag, "i2c_driver_install %d", I2C_NUM_0);
-    ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, conf.mode, 0, 0, 0));
+    if(!driver_installed) {
+        ESP_ERROR_CHECK(i2c_driver_install(I2C_NUM_0, conf.mode, 0, 0, 0));
+        driver_installed=true;
+    }
 
     int id=i2c_read_byte(MPU6050_REG_CHIP_ID);
     
