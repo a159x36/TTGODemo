@@ -148,7 +148,7 @@ void boids_demo() {
         int gridw=(display_width+GRIDSIZE-1)/GRIDSIZE;
         int gridh=(display_height+GRIDSIZE-1)/GRIDSIZE;
         boid *boids = malloc(sizeof(boid)*NBOIDS);
-        boid **grid = calloc(sizeof(boid *),gridh*gridw);
+        boid **grid = calloc(gridh*gridw,sizeof(boid *));
         uint16_t cols[6];
         for(int i=0;i<6;i++) {
             cols[i]=rgbToColour(((i+1)&1)*255,((i+1)&2)*127,((i+1)&4)*63);
