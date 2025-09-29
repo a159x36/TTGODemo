@@ -43,6 +43,11 @@ int keyrepeat=1;
 
 static int button_val[2]={1,1};
 
+void delay_us(int delay) {
+    int64_t future=esp_timer_get_time()+delay;
+    while(esp_timer_get_time()<future);
+}
+
 int read_touch(int t) {
     #ifdef TTGO_S3
     uint32_t touch_value;
@@ -185,7 +190,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
             printf("FPS:%f %d %d\n", 1.0e6 / (current_time - last_time),
                 heap_caps_get_free_size(MALLOC_CAP_DMA),
                 heap_caps_get_free_size(MALLOC_CAP_32BIT));
-                vTaskDelay(1);
+                vTaskDelay(0);
         }
         last_time = current_time;
         key_type key=get_input();

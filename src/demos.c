@@ -33,7 +33,7 @@ void showfps() {
     uint64_t current_time = esp_timer_get_time();
     if ((frame++ % 20) == 1) {
         printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
-        vTaskDelay(1);
+        vTaskDelay(0);
     }
     last_time=current_time;
 }
@@ -366,7 +366,7 @@ void bubble_demo() {
     vTaskDelay(500/portTICK_PERIOD_MS);
     while(get_input());
     while(get_input()!=RIGHT_DOWN)
-        vTaskDelay(1);
+        vTaskDelay(100/portTICK_PERIOD_MS);
     free(stars);
 }
 
@@ -512,7 +512,7 @@ void mqtt_leds() {
          v=(v+1)%30;
          digitalLeds_updatePixels(&STRAND);
 //         vTaskDelay(delay);
-         ets_delay_us(delay*100);
+         delay_us(delay*100);
      //    if(!gpio_get_level(0)) delay--;
      //    if(!gpio_get_level(35)) delay++;
          if(delay<0) delay=0;
@@ -557,7 +557,7 @@ void led_numbers(void) {
                 pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(r/2, g/2, b/2);
             }
         digitalLeds_updatePixels(pStrand);
-        ets_delay_us(delay*100);
+        delay_us(delay*100);
     }
     digitalLeds_free(pStrand);
 }
@@ -591,7 +591,7 @@ void led_cube(void) {
                 pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(rr/8, gg/8, bb/8);
             }
         digitalLeds_updatePixels(pStrand);
-        ets_delay_us(delay*100);
+        delay_us(delay*100);
         showfps();
     }
     digitalLeds_free(pStrand);
@@ -625,7 +625,7 @@ void led_circles(void) {
         }
         digitalLeds_updatePixels(pStrand);
         offset-=0.1f;
-        ets_delay_us(delay*100);
+        delay_us(delay*100);
         if(!gpio_get_level(0)) delay--;
         if(!gpio_get_level(35)) delay++;
         if(delay<0) delay=0;

@@ -79,6 +79,7 @@ void event_handler(void *arg, esp_event_base_t event_base,
             //     esp_wifi_connect();
             break;
         case WIFI_EVENT_SCAN_DONE:
+            ESP_LOGI(tag, "WiFi Scan Done");
             esp_wifi_scan_start(NULL, false);
             break;
         }
@@ -218,7 +219,7 @@ void web_client(void) {
         r = jd_decomp(&decoder, jpg_write, 1);
     free(work);
     flip_frame();
-    while(get_input()!=RIGHT_DOWN) vTaskDelay(100);
+    while(get_input()!=RIGHT_DOWN) vTaskDelay(100/portTICK_PERIOD_MS);
 }
 
 esp_mqtt_client_handle_t mqtt_client = NULL;
