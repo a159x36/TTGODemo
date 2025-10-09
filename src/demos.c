@@ -196,41 +196,50 @@ void image_wave_demo() {
     }
 }
 
+typedef struct {
+    vec3f rot;
+    vec2f pos;
+    int size;
+    vec3f spin;
+    colourtype col;
+} teapot_data;
+
 void teapots_demo() {
-    int nteapots=5;
-    vec3f rot[nteapots];
-    vec2f pos[nteapots];
-    int s[nteapots];
-    vec3f spin[nteapots];
-    colourtype col[nteapots];
+    int nteapots=10;
+//    srand(0); //uncomment for the same teapots each time
+    teapot_data tpd[nteapots];
+    
     for(int i=0;i<nteapots; i++) {
-        rot[i]=(vec3f){(rand()%31415)/5000.0,
+        tpd[i].rot=(vec3f){(rand()%31415)/5000.0,
                 (rand()%31415)/5000.0,
                 (rand()%31415)/5000.0};
-        pos[i]=(vec2f){rand()%(display_width-20)+10,
+        tpd[i].pos=(vec2f){rand()%(display_width-20)+10,
                 rand()%(display_height-20)+10};
-        col[i]=(colourtype){rand()%100+155,
+        tpd[i].col=(colourtype){rand()%100+155,
                 rand()%100+155,
                 rand()%100+155};
-        spin[i]=(vec3f){(rand()%10000-5000)/100000.0,
+        tpd[i].spin=(vec3f){(rand()%10000-5000)/100000.0,
                 (rand()%10000-5000)/100000.0,
                 (rand()%10000-5000)/100000.0};
         int m=rand()%8;
         if(m==7) m=0;
-        if(m&1) col[i].r/=8;
-        if(m&2) col[i].g/=8;
-        if(m&4) col[i].b/=8;
-        
-        s[i]=rand()%20+10;
-        //if((i&7)==0) col[i].g=100;
+        if(m&1) tpd[i].col.r/=8;
+        if(m&2) tpd[i].col.g/=8;
+        if(m&4) tpd[i].col.b/=8;
+        tpd[i].size=rand()%20+10;
     }
     while(1) {
-        cls(0);//rgbToColour(0x87,0xce,0xeb));
+        cls(0);
+        uint64_t times1=0,times2=0;
         for(int i=0;i<nteapots; i++) {
-            draw_teapot(pos[i],s[i],rot[i],col[i],false);
-            //draw_cube(pos[i],s[i],rot[i]);
-            rot[i]=add3d(rot[i],spin[i]);
+            uint64_t time1,time2;
+            draw_teapot(tpd[i].pos,tpd[i].size,tpd[i].rot,tpd[i].col,false,&time1,&time2);
+            times1+=time1;
+            times2+=time2-time1;
+            tpd[i].rot=add3d(tpd[i].rot,tpd[i].spin);
         }
+        draw_rectangle(0,0,88,16,rgbToColour(40,0,0));
+        gprintf("%.2f %.2f",times1/1000.0f,times2/1000.0f);
         flip_frame();
         showfps();
         key_type key=get_input();

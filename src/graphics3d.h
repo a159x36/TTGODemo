@@ -6,6 +6,9 @@ typedef struct { float x; float y; float z;} vec3f;
 typedef struct { float x; float y;} vec2f;
 typedef struct {uint8_t r; uint8_t g; uint8_t b;} colourtype;
 
+extern uint64_t starttime;
+extern uint64_t beztime;
+extern uint64_t quadtime;
 
 static inline vec3f sub3d(const vec3f p0, const vec3f p1) {
     return (vec3f){p0.x-p1.x, p0.y-p1.y, p0.z-p1.z};
@@ -78,12 +81,12 @@ static inline float Q_rsqrt( float number )
 	return conv.f;
 }
 
-static inline vec3f normalise(vec3f p) {
+static inline vec3f normalise(const vec3f p) {
     float mag=Q_rsqrt(p.x*p.x+p.y*p.y+p.z*p.z);
     return (vec3f){(p.x)*mag, (p.y)*mag, (p.z)*mag};
 }
 
-static inline vec2f normalise2d(vec2f p) {
+static inline vec2f normalise2d(const vec2f p) {
     float d2=p.x*p.x+p.y*p.y;
    // if(d2<0.01f)
    //     return p;
@@ -91,10 +94,23 @@ static inline vec2f normalise2d(vec2f p) {
     return (vec2f){(p.x)*mag, (p.y)*mag};
 }
 
-static inline float dot(vec3f p0,vec3f p1) {
+static inline float dot(const vec3f p0,const vec3f p1) {
     return ((p0.x*p1.x))+((p0.y*p1.y))+((p0.z*p1.z));
 }
 
-void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col, int multicolour);
+static inline float maxf(float a, float b) {return a>b?a:b;}
+static inline float minf(float a, float b) {return a<b?a:b;}
+static inline float dist(vec3f a, vec3f b) {return (mag3d(sub3d(a,b)));}
+
+static inline int clamp(int x,int min,int max) {
+    const int t = x < min ? min : x;
+    return t > max ? max : t;
+}
+
+static inline float clampf(float x,float min,float max) {
+    const float t = x < min ? min : x;
+    return t > max ? max : t;
+}
+void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col, int multicolour, uint64_t *time1, uint64_t *time2);
 void draw_cube(vec2f pos, float size, vec3f rot);
 #endif
