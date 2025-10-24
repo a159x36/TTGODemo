@@ -10,7 +10,6 @@
 #include <esp_timer.h>
 
 // this code can draw any 3d object but mostly just a teapot.
-
 static const vec3f lightdir={0.577f,-0.577f,0.577f};
 static float rmx[3][3];
 static vec2f position={0,0};
@@ -49,7 +48,7 @@ static void maketrotationmatrix(vec3f rotation, vec2f pos, float size) {
 }
 
 // add a quad to one of the lists and work out what colour to draw it.
-static void add_quad(const vec3f p0, const vec3f p1, const vec3f p2, const vec3f p3) {
+static void add_quad(const vec3f p0, const vec3f p1, const vec3f p2, const vec3f p3, const vec3f material_colour) {
     if(p0.x<0 && p1.x<0 && p2.x<0 && p3.x<0) return;
     if(p0.y<0 && p1.y<0 && p2.y<0 && p3.y<0) return;
     if(p0.x>display_width && p1.x>display_width && p2.x>display_width && p3.x>display_width) return;
@@ -77,9 +76,13 @@ static void add_quad(const vec3f p0, const vec3f p1, const vec3f p2, const vec3f
     // use average z value for the quad as the list index.
     // so they are drawn with the closest last
     uint8_t zindex=((p0.z+p1.z+p2.z+p3.z)/4)+128;
-    quads[nquads++]=(quadtype){{p0.x+0.5f,p0.y+0.5f,p1.x+0.5f,p1.y+0.5f,p2.x+0.5f,p2.y+0.5f,p3.x+0.5f,p3.y+0.5f},
+
+    static portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
+    taskENTER_CRITICAL(&spinlock);
+    quads[nquads++]=(quadtype){{p0.x,p0.y,p1.x,p1.y,p2.x,p2.y,p3.x,p3.y},
                         colour,quad_lists[zindex]};
     quad_lists[zindex]=nquads-1;
+    taskEXIT_CRITICAL(&spinlock);
 }
 
 static void draw_all_quads() {
@@ -137,7 +140,7 @@ static float bezier_length(vec3f const p0,vec3f const p1,vec3f const p2,vec3f co
     return dist(t1,p0)+dist(t2,t1)+dist(t3,t2)+dist(t4,t3)+dist(t5,t3)+dist(p3,t5);
 }
 
-static void add_bezier_patch(vec3f const p[4][4]) {
+static void add_bezier_patch(vec3f const p[4][4], vec3f material_colour) {
     int PX=2;
     // a patch has 16 control points
     // we use the length of the 1d curves to decide how many divisions to use.
@@ -170,7 +173,7 @@ static void add_bezier_patch(vec3f const p[4][4]) {
             int j1=i%2;
             int j0=1-j1;
             for (int k=0; k<xdivs; k++) {
-                add_quad(np[j0][k],np[j1][k],np[j1][k+1],np[j0][k+1]);
+                add_quad(np[j0][k],np[j1][k],np[j1][k+1],np[j0][k+1],material_colour);
             }
         }
     } 
@@ -187,24 +190,19 @@ static void quad_free() {
     free(quads);
 }
 
-void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col, int multicolour, uint64_t *time1, uint64_t *time2) {
-    uint64_t starttime=esp_timer_get_time();
-    quad_init();
-    material_colour=(vec3f){col.r,col.g,col.b};
-    maketrotationmatrix(rot,pos,size);
+static EventGroupHandle_t teapot_event = NULL;
+static QueueHandle_t task1Queue=NULL;
+static QueueHandle_t task2Queue=NULL;
 
-    // the teapot is made from 32 patches as follows:
-    // 28-31=base
-    // 20-27=lid 
-    // 16-19=spout
-    // 12-15=handle
-    // 8-11=bottom body
-    // 0-7=top body
-
-    nquads=0;
-    for(int ii=0;ii<32;ii++) {
-        if(multicolour)
-            material_colour=(vec3f){(ii&0x3)*64.0f+63,(ii/16)*128.0f,((ii&0xc)/4)*64.0f+63};
+// number of parts to split the teapot into, must be a factor of 32
+// if >1 then uses both cores
+static const int parts=2;
+static int multicolour=1;
+static void teapotpart(int ni) {
+    vec3f colour=material_colour;
+    for(int ii=ni*(32/parts);ii<(ni+1)*(32/parts);ii++) {
+        if(multicolour) 
+            colour=(vec3f){(ii&0x3)*64.0f+63,(ii/16)*128.0f,((ii&0xc)/4)*64.0f+63};
         // each patch is defined by 16 control points
         vec3f p[4][4];
         for(int j=0;j<4;j++) {
@@ -223,8 +221,54 @@ void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col, int multicolo
                 p[j][k]=vrotate(vv);
             }
         }
-        add_bezier_patch(p);
+        add_bezier_patch(p,colour);
     }
+    
+    if(parts!=1) xEventGroupSetBits(teapot_event, 1<<ni);
+}
+
+static void teapotTask(void *vp) {
+    QueueHandle_t queue=(QueueHandle_t) vp;
+    int part;
+    while(1) {
+        xQueueReceive(queue,&part,portMAX_DELAY);
+        teapotpart(part);
+    }
+}
+
+void draw_teapot(vec2f pos, float size, vec3f rot, colourtype col, int multi_colour, uint64_t *time1, uint64_t *time2) {
+    uint64_t starttime=esp_timer_get_time();
+    multicolour=multi_colour;
+    if(teapot_event==NULL && parts!=1) {
+        teapot_event=xEventGroupCreate();
+        TaskHandle_t xHandle = NULL;
+        task1Queue=xQueueCreate(4,4);
+        task2Queue=xQueueCreate(4,4);
+        xTaskCreatePinnedToCore( teapotTask, "Teapot1", 2560, (void *)task1Queue, 5, &xHandle ,1);
+        xTaskCreatePinnedToCore( teapotTask, "Teapot2", 2560, (void *)task2Queue, 5, &xHandle ,0);
+    }
+    quad_init();
+    material_colour=(vec3f){col.r,col.g,col.b};
+    maketrotationmatrix(rot,pos,size);
+
+    // the teapot is made from 32 patches as follows:
+    // 28-31=base
+    // 20-27=lid 
+    // 16-19=spout
+    // 12-15=handle
+    // 8-11=bottom body
+    // 0-7=top body
+    nquads=0;
+    if(parts==1) {
+        teapotpart(0);
+    } else {
+        xEventGroupClearBits(teapot_event,(1<<parts)-1);
+        for(int ii=0;ii<parts;ii++) {
+            xQueueSend((ii%2==0)?task1Queue:task2Queue,&ii,portMAX_DELAY);
+        }
+        xEventGroupWaitBits(teapot_event,(1<<parts)-1, pdTRUE, pdTRUE, portMAX_DELAY);
+    }
+    
     if(time1!=NULL) *time1=esp_timer_get_time()-starttime;
     draw_all_quads();
     if(time2!=NULL) *time2=esp_timer_get_time()-starttime;
@@ -258,7 +302,7 @@ void draw_cube(vec2f pos, float size, vec3f rot) {
         col.g=(((q+1)>>1)&1)*255;
         col.b=(((q+1)>>2)&1)*255;
         material_colour=(vec3f){col.r,col.g,col.b};
-        add_quad(quad[0],quad[1],quad[2],quad[3]);
+        add_quad(quad[0],quad[1],quad[2],quad[3],material_colour);
     }
     draw_all_quads();
     quad_free();

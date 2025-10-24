@@ -5,25 +5,25 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-int NPREDATORS=0;
-int NBOIDS=400;
-const int PRED_FLOCK=7;
-const int NEIGH=10;
-const int GRIDSIZE=15;
-const int NFLOCKS=2; // up to 6
-const float MAXACC=0.5f;
-const float MAXVEL=2.0f;
-const float PREDMAXVEL=2.2f;
-const float PREDMASS=0.1f;
-const float MINVEL=1.0f;
-float FCOHESION=0.05f;
-float FALIGN=0.05f;
-float FSEPARATION=0.4f;
-const float FPRED=2.0f;
-const float FOBJAVOID=5.0f;
-int NSPHERES=0;
-#define MAXSPHERES 3
-#define MAXPREDATORS 3
+static int NPREDATORS=0;
+static int NBOIDS=400;
+static const int PRED_FLOCK=7;
+static const int NEIGH=10;
+static const int GRIDSIZE=15;
+static const int NFLOCKS=2; // up to 6
+static const float MAXACC=0.5f;
+static const float MAXVEL=2.0f;
+static const float PREDMAXVEL=2.2f;
+static const float PREDMASS=0.1f;
+static const float MINVEL=1.0f;
+static float FCOHESION=0.05f;
+static float FALIGN=0.05f;
+static float FSEPARATION=0.4f;
+static const float FPRED=2.0f;
+static const float FOBJAVOID=5.0f;
+static int NSPHERES=0;
+static const int MAXSPHERES=3;
+static const int MAXPREDATORS=3;
 
 typedef struct boid {
     vec2f pos;      // boid position
@@ -63,15 +63,15 @@ typedef struct sphere {
 } sphere;
 
 
-const char * const mmenu[]={"Exit","Boids","Objects","Cohesion","Alignment","Separation","Predators",NULL};
-const char * const bmenu[]={"Exit","100","200","400","800",NULL};
-const char * const smenu[]={"Exit","0","1","2","3",NULL};
-const char * const casmenu[]={"Exit","0.01","0.02","0.04","0.08","0.1","0.2","0.5","0.8","1.6","3.0",NULL};
-const char * const * const menus[]={mmenu,bmenu,smenu,casmenu,casmenu,casmenu,smenu}; 
+static const char * const mmenu[]={"Exit","Boids","Objects","Cohesion","Alignment","Separation","Predators",NULL};
+static const char * const bmenu[]={"Exit","100","200","400","800",NULL};
+static const char * const smenu[]={"Exit","0","1","2","3",NULL};
+static const char * const casmenu[]={"Exit","0.01","0.02","0.04","0.08","0.1","0.2","0.5","0.8","1.6","3.0",NULL};
+static const char * const * const menus[]={mmenu,bmenu,smenu,casmenu,casmenu,casmenu,smenu}; 
 
-int menu_no=-1;
-int sel=0;
-int show_menu(int key) {
+static int menu_no=-1;
+static int sel=0;
+static int show_menu(int key) {
     if(key==RIGHT_DOWN && menu_no==-1) {
         menu_no=0;
         sel=0;
@@ -136,9 +136,6 @@ Alignment=%.2f Separation=%.2f Predators=%d", \
     return 1;
 }
 
-void init() {
-
-}
 // boids simulation
 // see: http://www.red3d.com/cwr/boids/
 // for info on the algorithm
@@ -176,7 +173,7 @@ void boids_demo() {
         
         while(1) {
             cls(0);
-            int nearest[MAXPREDATORS]={0};
+            int nearest[MAXPREDATORS]={};
             float min_d2=display_width*display_width*display_width;
             for(int i=0;i<NSPHERES;i++) {
                 int x,x1,y,y1;

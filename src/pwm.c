@@ -13,7 +13,7 @@
 #define SERVO_PIN 27
 #endif
 
-void display_duty(int duty, bool servo) {
+static void display_duty(int duty, bool servo) {
     cls(rgbToColour(0,0,100));
     if(servo) {
         setFontColour(255,255,0);

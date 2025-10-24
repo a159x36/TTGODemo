@@ -23,19 +23,44 @@
 #include "rgb_led.h"
 #include "networking.h"
 #include <mqtt_client.h>
+// These fonts are not included automatically to save space
+#include "Font_5x7_practical.h"
+#include "FreeSans9pt7b.h"
+#include "FreeSans12pt7b.h"
+#include "FreeSans18pt7b.h"
+#include "FreeSans24pt7b.h"
+#include "FreeSansBold9pt7b.h"
+#include "FreeSansBold12pt7b.h"
+#include "FreeSansBold18pt7b.h"
+#include "FreeMono9pt7b.h"
+#include "FreeSerif9pt7b.h"
+#include "FreeMonoBold9pt7b.h"
+#include "FreeSerifBold9pt7b.h"
 
 const char *tag="T Display";
 
-
-void showfps() {
-    static uint64_t last_time=0;
-    static int frame=0;
-    uint64_t current_time = esp_timer_get_time();
-    if ((frame++ % 20) == 1) {
-        printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
-        vTaskDelay(0);
-    }
-    last_time=current_time;
+void fonts_demo() {
+   // setAntialias(true);
+    char mesg[]="The Quick Brown Fox Jumped\nOver The Lazy Dog\n";
+    
+    int start=0;
+    GFXfont fonts[]={def_small,Font_5x7_practical8pt7b,Ubuntu16,DejaVuSans18,DejaVuSans24,FreeSans9pt7b,FreeSansBold9pt7b,FreeMono9pt7b, FreeMonoBold9pt7b, FreeSerif9pt7b, FreeSerifBold9pt7b, FreeSans12pt7b,FreeSansBold12pt7b,FreeSans18pt7b,FreeSansBold18pt7b,FreeSans24pt7b,FreeSansBold24pt7b};
+    int k;
+    do{
+        cls(rgbToColour(64,64,64));
+        for(int i=start;i<ARRAY_LENGTH(fonts);i++) {
+            int c=i&7;
+            setFontColour(((c&4)*255)/4,((c&2)*255)/2,(c&1)*255);
+            setFont(fonts[i]);
+            gprintf(mesg);
+        }
+        flip_frame();
+        showfps();
+        k=get_input();
+        if(k==LEFT_DOWN)
+            start=(start+1)%ARRAY_LENGTH(fonts);
+    } while(k!=RIGHT_DOWN);
+  //  setAntialias(false);
 }
 // Simple game of life demo
 void life_demo() {
@@ -75,24 +100,16 @@ void life_demo() {
         if(key==LEFT_DOWN) return;
     }
 }
-#define NSTARS 100
 
-extern image_header  spaceship_image;
-typedef struct pos {
-    float x;
-    float y;
-    float speed;
-    int colour;
-} pos;
 
 static float last_star_time=0;
-void initstars(pos *stars) {
+static void initstars(pos *stars) {
     for(int i=0;i<NSTARS;i++) {
         stars[i]=(pos){rand()%display_width,rand()%display_height,(rand()%512+64)/256.0,rand()};
     }
     last_star_time=esp_timer_get_time();
 }
-float drawstars(pos *stars) {
+static float drawstars(pos *stars) {
     float dt;
     uint64_t time=esp_timer_get_time();
     dt=(time-last_star_time)/10000.0;
@@ -196,15 +213,16 @@ void image_wave_demo() {
     }
 }
 
-typedef struct {
-    vec3f rot;
-    vec2f pos;
-    int size;
-    vec3f spin;
-    colourtype col;
-} teapot_data;
+
 
 void teapots_demo() {
+    typedef struct {
+        vec3f rot;
+        vec2f pos;
+        int size;
+        vec3f spin;
+        colourtype col;
+    } teapot_data;
     int nteapots=10;
 //    srand(0); //uncomment for the same teapots each time
     teapot_data tpd[nteapots];
@@ -529,7 +547,7 @@ void mqtt_leds() {
      digitalLeds_free(&STRAND);
      mqtt_disconnect();
 }
-void led_instructions() {
+static void led_instructions() {
     cls(bg_col);
     setFont(FONT_DEJAVU18);
     setFontColour(0,0,0);

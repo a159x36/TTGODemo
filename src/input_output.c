@@ -27,28 +27,39 @@
 
 #ifdef TTGO_S3
 #define SHOW_TOUCH_PADS
-const int RIGHT_BUTTON=14;
-const int TOUCH_PADS[4]={1,2,12,13};
+static const int RIGHT_BUTTON=14;
+static const int TOUCH_PADS[4]={1,2,12,13};
 #else
-const int RIGHT_BUTTON=35;
-const int TOUCH_PADS[4]={2,3,9,8};
+static const int RIGHT_BUTTON=35;
+static const int TOUCH_PADS[4]={2,3,9,8};
 #define SHOW_TOUCH_PADS
 #endif
 
 // for button inputs
-QueueHandle_t inputQueue;
-TimerHandle_t repeatTimer;
-uint64_t lastkeytime=0;
-int keyrepeat=1;
+static QueueHandle_t inputQueue;
+static TimerHandle_t repeatTimer;
+static uint64_t lastkeytime=0;
+static int keyrepeat=1;
 
 static int button_val[2]={1,1};
+
+void showfps() {
+    static uint64_t last_time=0;
+    static int frame=0;
+    uint64_t current_time = esp_timer_get_time();
+    if ((frame++ % 20) == 1) {
+        printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
+        vTaskDelay(0);
+    }
+    last_time=current_time;
+}
 
 void delay_us(int delay) {
     int64_t future=esp_timer_get_time()+delay;
     while(esp_timer_get_time()<future);
 }
 
-int read_touch(int t) {
+static int read_touch(int t) {
     #ifdef TTGO_S3
     uint32_t touch_value;
     touch_pad_read_raw_data(t, &touch_value);
@@ -213,8 +224,6 @@ void input_output_init() {
     gpio_isr_handler_add(RIGHT_BUTTON, gpio_isr_handler, (void*) RIGHT_BUTTON);
 #ifdef SHOW_TOUCH_PADS
     touch_pad_init();
-    
-    
     for (int i = 0;i< 4;i++) {
         #ifdef TTGO_S3
         touch_pad_config(TOUCH_PADS[i]);
@@ -224,7 +233,6 @@ void input_output_init() {
         touch_pad_config(TOUCH_PADS[i],0);
         #endif
     }
-    
     #ifdef TTGO_S3
     touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
     touch_pad_fsm_start();
@@ -238,7 +246,7 @@ static uint64_t touch_time=0;
 static uint64_t delay=400000;
 
 vec2 get_touchpads() {
-vec2 xy = {0, 0};
+    vec2 xy = {0, 0};
 #ifdef SHOW_TOUCH_PADS
     //const int TOUCH_PADS[4] = {2, 3, 9, 8};
     
@@ -356,7 +364,7 @@ void get_string(char *title, char *string, int len) {
     } while(true);
 }
 
-nvs_handle_t storage_open(nvs_open_mode_t mode) {
+static nvs_handle_t storage_open(nvs_open_mode_t mode) {
     esp_err_t err;
     nvs_handle_t my_handle;
     err = nvs_open("storage", mode, &my_handle);

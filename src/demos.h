@@ -15,6 +15,7 @@ void web_client();
 void mqtt();
 void time_demo();
 void boids_demo();
+void fonts_demo();
 void mqtt_leds();
 void led_circles(void);
 void led_numbers(void);
@@ -45,6 +46,15 @@ extern int is_emulator;
 extern const char *tag;
 void initialise_wifi(void);
 int obtain_time(void);
+#define NSTARS 100
+
+extern image_header  spaceship_image;
+typedef struct pos {
+    float x;
+    float y;
+    float speed;
+    int colour;
+} pos;
 
 // these allow intellisense to work
 #ifndef __ASSERT_FUNCTION

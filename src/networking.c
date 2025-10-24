@@ -37,11 +37,11 @@ int bg_col=0;
 esp_netif_t *network_interface = NULL;
 esp_netif_t *network_interface_ap = NULL;
 
-void set_event_message(const char *s) {
+static void set_event_message(const char *s) {
     snprintf(network_event,sizeof(network_event),"%s\n",s);
 }
 
-mqtt_callback_type mqtt_callback=0;
+static mqtt_callback_type mqtt_callback=0;
 
 void set_mqtt_callback(mqtt_callback_type callback) {
     mqtt_callback=callback;
@@ -100,7 +100,7 @@ void event_handler(void *arg, esp_event_base_t event_base,
 
 extern const char * const main_page_html;
 
-esp_err_t get_handler(httpd_req_t *req)
+static esp_err_t get_handler(httpd_req_t *req)
 {
     printf("Get %s\n",req->uri);
     if(!strcmp(req->uri,"/red")) bg_col=rgbToColour(255,0,0);
@@ -110,7 +110,7 @@ esp_err_t get_handler(httpd_req_t *req)
     return ESP_OK;
 }
 /* URI handler structure for GET /uri */
-httpd_uri_t uri_get = {
+static const httpd_uri_t uri_get = {
     .uri      = "/*",
     .method   = HTTP_GET,
     .handler  = get_handler,
@@ -143,9 +143,9 @@ void webserver(void) {
     } while(get_input()!=RIGHT_DOWN);
 }
 
-QueueHandle_t imageQueue=NULL;
+static QueueHandle_t imageQueue=NULL;
 
-esp_err_t http_event_handler(esp_http_client_event_t *evt) {
+static esp_err_t http_event_handler(esp_http_client_event_t *evt) {
     ESP_LOGI(TAG, "http event %d",(evt->event_id));
     if(evt->event_id==HTTP_EVENT_ON_DATA) {
         char *data=(char *)(evt->data);
@@ -183,7 +183,7 @@ static UINT jpg_write(JDEC *decoder, void *bitmap, JRECT *rect) {
     return 1;
 }
 
-void web_task(void *pvParameters) {
+static void web_task(void *pvParameters) {
     esp_http_client_config_t config = {
         .url = "http://www.trafficnz.info/camera/819.jpg", // if this is broken try 10.jpg, 20.jpg or 818.jpg
         .event_handler = http_event_handler,
@@ -268,7 +268,6 @@ static void my_mqtt_callback(int event_id, void *event_data) {
 }
 
 void mqtt() {
-
     char c;
     mqtt_connect(my_mqtt_callback);
     do {
@@ -324,7 +323,7 @@ void time_demo() {
                 setFontColour(255,0,0);
             else
                 setFontColour(0,255,0);
-            gprintf("\n%2d:%02d:%02d", tm_info->tm_hour,
+            gprintf("%2d:%02d:%02d", tm_info->tm_hour,
                  tm_info->tm_min, tm_info->tm_sec);
         }
         flip_frame();

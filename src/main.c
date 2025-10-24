@@ -30,12 +30,12 @@
 
 #define SHOW_PADS
 
-void wifi_settings_menu() {
+static void wifi_settings_menu() {
     int sel=0;
     while(1) {
         char *entries[]={"Choose AP","SSID","Username",
                          "Password", "Back"};
-        sel=demo_menu("Wifi Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        sel=demo_menu("Wifi Menu",ARRAY_LENGTH(entries),entries,sel);
         switch(sel) {
             case 0:
                 wifi_scan(1);
@@ -55,11 +55,11 @@ void wifi_settings_menu() {
     }
 }
 
-void led_menu() {
+static void led_menu() {
     int sel=0;
     while(1) {
         char *entries[]={"MQTT", "Circles", "Numbers", "Cube", "Back"};
-        sel=demo_menu("Leds Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        sel=demo_menu("Leds Menu",ARRAY_LENGTH(entries),entries,sel);
         switch(sel) {
             case 0:
                 mqtt_leds();
@@ -79,13 +79,13 @@ void led_menu() {
     }
 }
 
-void wifi_menu() {
+static void wifi_menu() {
     int sel=0;
     while(1) {
         int connected=wifi_connected();
         char *entries[]={"Scan",connected?"Disconnect":"Connect","Access Point",
                          "Settings", "Back"};
-        sel=demo_menu("Wifi Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        sel=demo_menu("Wifi Menu",ARRAY_LENGTH(entries),entries,sel);
         switch(sel) {
             case 0:
                 wifi_scan(0);
@@ -107,38 +107,35 @@ void wifi_menu() {
         }
     }
 }
-void graphics_menu() {
+static void graphics_menu() {
     int sel=0;
     while(1) {
-        char *entries[]={"Boids", "Life","Image Wave", "Spaceship", "Teapots","Back"};
-        sel=demo_menu("Graphics Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        char *entries[]={"Fonts","Image Wave", "Spaceship", "Teapots","Back"};
+        sel=demo_menu("Graphics Menu",ARRAY_LENGTH(entries),entries,sel);
         switch(sel) {
             case 0:
-                boids_demo();            
+                fonts_demo();            
                 break;
             case 1:
-                life_demo();
-                break;
-            case 2:
                 image_wave_demo();
                 break;
-            case 3:
-                spaceship_demo();
+            case 2:
+                fonts_demo();
                 break;
-            case 4:
+            case 3:
                 teapots_demo();
                 break;
-            case 5:
+            case 4:
                 return;
         }
     }
 }
 
-void pwm_menu() {
+static void pwm_menu() {
     int sel=0;
     while(1) {
         char *entries[]={"LEDC Backlight","LEDC Servo","MCPWM Servo","GPIO Backlight","GPIO Servo","Back"};
-        sel=demo_menu("PWM Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        sel=demo_menu("PWM Menu",ARRAY_LENGTH(entries),entries,sel);
         switch(sel) {
             case 0:
                 ledc_backlight_demo();
@@ -160,11 +157,11 @@ void pwm_menu() {
         }
     }
 }
-void network_menu() {
+static void network_menu() {
     int sel=0;
     while(1) {
         char *entries[]={"Wifi","MQTT","Time","Web Server","Web Client","Back"};
-        sel=demo_menu("Network Menu",sizeof(entries)/sizeof(char *),entries,sel);
+        sel=demo_menu("Network Menu",ARRAY_LENGTH(entries),entries,sel);
         switch(sel) {
             case 0:
                 wifi_menu();
@@ -182,6 +179,27 @@ void network_menu() {
                 web_client();
                 break;
             case 5:
+                return;
+        }
+    }
+}
+
+static void games_menu() {
+    int sel=0;
+    while(1) {
+        char *entries[]={"Bubble Game","Life","Boids","Back"};
+        sel=demo_menu("Game Menu",ARRAY_LENGTH(entries),entries,sel);
+        switch(sel) {
+            case 0:
+                bubble_demo();
+                break;
+            case 1:
+                life_demo();
+                break;
+            case 2:
+                boids_demo();
+                break;
+            case 3:
                 return;
         }
     }
@@ -214,9 +232,9 @@ void app_main() {
     int sel=0;
     while(1) {
         char *entries[]={"Graphics","Networking","Leds",
-                        "PWM","Bubble Game",
+                        "PWM","Games",
                         get_orientation()?"Landscape":"Portrait"};
-        sel=demo_menu("Demo",sizeof(entries)/sizeof(char *),entries,sel);
+        sel=demo_menu("Demo",ARRAY_LENGTH(entries),entries,sel);
         switch(sel) {
             case 0:
                 graphics_menu();
@@ -231,7 +249,7 @@ void app_main() {
                 pwm_menu();
                 break;
             case 4:
-                bubble_demo();
+                games_menu();
                 break;
             case 5:
                 set_orientation(1-get_orientation());
