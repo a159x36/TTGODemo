@@ -64,16 +64,6 @@ void fonts_demo() {
   //  setAntialias(false);
 }
 
-void showfps() {
-    static uint64_t last_time=0;
-    static int frame=0;
-    uint64_t current_time = esp_timer_get_time();
-    if ((frame++ % 20) == 1) {
-        printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
-        vTaskDelay(1);
-    }
-    last_time=current_time;
-}
 // Simple game of life demo
 void life_demo() {
     cls(0);
