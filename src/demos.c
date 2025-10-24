@@ -36,6 +36,7 @@
 #include "FreeSerif9pt7b.h"
 #include "FreeMonoBold9pt7b.h"
 #include "FreeSerifBold9pt7b.h"
+#include "accelerometer.h"
 
 const char *tag="T Display";
 
@@ -61,6 +62,17 @@ void fonts_demo() {
             start=(start+1)%ARRAY_LENGTH(fonts);
     } while(k!=RIGHT_DOWN);
   //  setAntialias(false);
+}
+
+void showfps() {
+    static uint64_t last_time=0;
+    static int frame=0;
+    uint64_t current_time = esp_timer_get_time();
+    if ((frame++ % 20) == 1) {
+        printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
+        vTaskDelay(1);
+    }
+    last_time=current_time;
 }
 // Simple game of life demo
 void life_demo() {
@@ -659,4 +671,23 @@ void led_circles(void) {
         showfps();
     }
     digitalLeds_free(pStrand);
+}
+
+void accel_demo(void) {
+    int x,y;
+    pos *stars=malloc(sizeof(pos)*NSTARS);
+    initstars(stars);
+    mpu6050_init();
+    while(1) {
+        cls(0);
+        drawstars(stars);
+        int16_t buf[7];
+        read_mpu6050(buf);
+        x=(display_width*buf[0])/(16384*2)+display_width/2;
+        y=-(display_height*buf[1])/(16384*2)+display_height/2;
+        draw_image(&bubble, x,y);
+        flip_frame();
+        int key=get_input();
+        if(key==LEFT_DOWN) return;
+    }
 }

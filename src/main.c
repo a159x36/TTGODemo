@@ -2,7 +2,7 @@
 
 */
 #include <driver/gpio.h>
-
+#include <driver/i2c.h>
 #include <esp_system.h>
 #include <esp_wifi.h>
 #include <freertos/FreeRTOS.h>
@@ -58,8 +58,8 @@ static void wifi_settings_menu() {
 static void led_menu() {
     int sel=0;
     while(1) {
-        char *entries[]={"MQTT", "Circles", "Numbers", "Cube", "Back"};
-        sel=demo_menu("Leds Menu",ARRAY_LENGTH(entries),entries,sel);
+        char *entries[]={"MQTT", "Circles", "Numbers",  "Cube", "Accelerometer", "Back"};
+        sel=demo_menu("Leds/Accel Menu",ARRAY_LENGTH(entries),entries,sel);
         switch(sel) {
             case 0:
                 mqtt_leds();
@@ -74,6 +74,9 @@ static void led_menu() {
                 led_cube();
                 break;
             case 4:
+                accel_demo();
+                break;
+            case 5:
                 return;
         }
     }
@@ -206,7 +209,6 @@ static void games_menu() {
 }
 
 
-
 void app_main() {
     // initialise button handling
     input_output_init();
@@ -231,7 +233,7 @@ void app_main() {
     // main menu
     int sel=0;
     while(1) {
-        char *entries[]={"Graphics","Networking","Leds",
+        char *entries[]={"Graphics","Networking","Leds/Accel",
                         "PWM","Games",
                         get_orientation()?"Landscape":"Portrait"};
         sel=demo_menu("Demo",ARRAY_LENGTH(entries),entries,sel);

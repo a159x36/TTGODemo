@@ -72,12 +72,6 @@ void wifi_disconnect() {
             while(wifi_connected());
         }
         esp_wifi_stop();
-     //   esp_wifi_deinit();
-     //   esp_event_loop_delete_default();
-     //   esp_wifi_clear_default_wifi_driver_and_handlers(network_interface);
-     //   esp_netif_destroy(network_interface);
-       // esp_netif_deinit();
-       // network_interface=NULL;
     }
 }
 void init_wifi(wifi_mode_type mode) {
@@ -131,6 +125,7 @@ void init_wifi(wifi_mode_type mode) {
         wifi_config_t wifi_config = {0};
         strncpy((char *)wifi_config.sta.ssid,ssid,sizeof(wifi_config.sta.ssid));
         strncpy((char *)wifi_config.sta.password,password,sizeof(wifi_config.sta.password));
+        wifi_config.sta.channel=6;
         ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
         if(strlen(username)!=0) {
             ESP_ERROR_CHECK( esp_eap_client_set_username((uint8_t *)username, strlen(username)) );
