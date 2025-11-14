@@ -28,7 +28,11 @@
 #include "input_output.h"
 #include "networking.h"
 #include "esp_http_client.h"
+#ifdef TTGO_S3
+#include "esp32s3/rom/tjpgd.h"
+#else
 #include "esp32/rom/tjpgd.h"
+#endif
 
 EventGroupHandle_t network_event_group;
 char network_event[64];

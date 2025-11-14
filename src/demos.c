@@ -40,6 +40,15 @@
 
 const char *tag="T Display";
 
+float getdt() {
+    static uint64_t last_time=0;
+    float dt;
+    uint64_t current_time = esp_timer_get_time();
+    if(last_time==0) dt=0;
+    else dt=(current_time-last_time)/1000000.0f;
+    last_time=current_time;
+    return dt;
+}
 void fonts_demo() {
    // setAntialias(true);
     char mesg[]="The Quick Brown Fox Jumped\nOver The Lazy Dog\n";
@@ -128,21 +137,21 @@ static float drawstars(pos *stars) {
 // simple spaceship and starfield demo
 void spaceship_demo() {
     // x and it's derivatives
-    float x[]={display_width/2,0.2f,0.076f,0.003f};
-    float xmin[]={0,-3,-1};
-    float xmax[]={display_width-1,3,1};
+    float x[]={display_width/2,0.2f,0.076f,0.03f, 0.01f};
+    float xmin[]={0,-3,-1,-0.5f};
+    float xmax[]={display_width-1,3,1,0.5f};
     float y=display_height-spaceship_image.height/2;
     pos * stars=malloc(sizeof(pos)*NSTARS);
     initstars(stars);
     while(1) {
         cls(0);
-        drawstars(stars);
+        float dt=drawstars(stars);
         draw_image(&spaceship_image, x[0],y);
         for(int i=0;i<(sizeof(x)/sizeof(x[0]))-1;i++) {
-            x[i]+=x[i+1];
+            x[i]+=x[i+1]*dt;
             if(x[i]<xmin[i] || x[i]>xmax[i]) {
                 x[i+1]=-x[i+1];
-                x[i]+=x[i+1];
+                x[i]+=x[i+1]*dt;
             }
         }
         flip_frame();

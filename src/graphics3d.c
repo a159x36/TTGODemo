@@ -88,18 +88,21 @@ static void add_quad(const vec3f p0, const vec3f p1, const vec3f p2, const vec3f
 static void draw_all_quads() {
     for(int i=0;i<256;i++) {
         uint16_t qi=quad_lists[i];
+        //int c=0;
         while(qi!=65535) {
             quadtype *q=quads+qi;
             draw_triangle(q->p[0],q->p[1],q->p[2],q->p[3],q->p[4],q->p[5],q->col);
             draw_triangle(q->p[4],q->p[5],q->p[6],q->p[7],q->p[0],q->p[1],q->col);
             qi=q->next;
+        //    c++;
         }
+        //printf("%d %d\n",i,c);
     }
 }
 
 // rotate a vector by multiplying it by the rotation matrix
 static vec3f vrotate(vec3f v) {
-    v.z=(v.z-2.0);
+    v.z=(v.z-1.575);
     return (vec3f){ (rmx[0][0]*v.x+rmx[0][1]*v.y+rmx[0][2]*v.z)+position.x,
                     (rmx[1][0]*v.x+rmx[1][1]*v.y+rmx[1][2]*v.z)+position.y,
                     (rmx[2][0]*v.x+rmx[2][1]*v.y+rmx[2][2]*v.z)};

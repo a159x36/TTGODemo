@@ -123,7 +123,7 @@ static void graphics_menu() {
                 image_wave_demo();
                 break;
             case 2:
-                fonts_demo();
+                spaceship_demo();
                 break;
             case 3:
                 teapots_demo();
