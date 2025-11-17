@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #define CONFIG_RMT_SUPPRESS_DEPRECATE_WARN 1
-#include <driver/rmt.h>
+#include <driver/rmt_tx.h>
 
 typedef struct __attribute__ ((packed)) {
   uint8_t g, r, b;
@@ -29,7 +29,9 @@ typedef struct {
   int numPixels;
 
   pixelColor_t * pixels;
-  rmt_config_t rmt_config;
+  rmt_transmit_config_t rmt_config;
+  rmt_channel_handle_t rmt_channel;
+  rmt_encoder_handle_t rmt_encoder;
 } strand_t;
 
 enum led_types {

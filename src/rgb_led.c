@@ -1,13 +1,11 @@
-
-
 #include "rgb_led.h"
 
 #include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
-
+#include "esp_log.h"
 #include <stdio.h>
 #include <string.h>  
 
+#define RMT_LED_STRIP_RESOLUTION_HZ 20000000
 
 const ledParams_t ledParamsAll[] = {  // Still must match order of `led_types`
   [LED_WS2812_V1]  = { .bytesPerPixel = 3, .T0H = 350, .T1H = 700, .T0L = 800, .T1L = 600, .TRS =  50000},
@@ -21,76 +19,87 @@ const ledParams_t ledParamsAll[] = {  // Still must match order of `led_types`
   [LED_SK6812W_V1] = { .bytesPerPixel = 4, .T0H = 300, .T1H = 600, .T0L = 900, .T1L = 600, .TRS =  80000},
 };
 
-static uint32_t t0h_ticks = 0;
-static uint32_t t1h_ticks = 0;
-static uint32_t t0l_ticks = 0;
-static uint32_t t1l_ticks = 0;
-static uint32_t reset_ticks = 0;
 static uint8_t max_value=255;
 
+static rmt_symbol_word_t ws2812_zero = {
+    .level0 = 1,
+    .duration0 = 0.3 * RMT_LED_STRIP_RESOLUTION_HZ / 1000000, // T0H=0.3us
+    .level1 = 0,
+    .duration1 = 0.9 * RMT_LED_STRIP_RESOLUTION_HZ / 1000000, // T0L=0.9us
+};
 
+static rmt_symbol_word_t ws2812_one = {
+    .level0 = 1,
+    .duration0 = 0.9 * RMT_LED_STRIP_RESOLUTION_HZ / 1000000, // T1H=0.9us
+    .level1 = 0,
+    .duration1 = 0.3 * RMT_LED_STRIP_RESOLUTION_HZ / 1000000, // T1L=0.3us
+};
 
-static void IRAM_ATTR ws2812_rmt_adapter(const void *src, rmt_item32_t *dest, size_t src_size,
-        size_t wanted_num, size_t *translated_size, size_t *item_num) {
-    if (src == NULL || dest == NULL) {
-        *translated_size = 0;
-        *item_num = 0;
-        return;
+static uint16_t reset_duration=0;
+
+static size_t encoder_callback(const void *src, size_t data_size,
+                               size_t symbols_written, size_t symbols_free,
+                               rmt_symbol_word_t *symbols, bool *done, void *arg) {
+    if (symbols_free < 8) {
+        return 0;
     }
-    rmt_item32_t bit0 = {{{ t0h_ticks, 1, t0l_ticks, 0 }}}; //Logical 0
-    rmt_item32_t bit1 = {{{ t1h_ticks, 1, t1l_ticks, 0 }}}; //Logical 1
-
-    size_t size = 0;
-    size_t num = 0;
-    uint8_t *psrc = (uint8_t *)src;
-    rmt_item32_t *pdest = dest;
-    while (size < src_size && num < wanted_num) {
-        uint8_t byte=*psrc;
-        if(byte>max_value) byte=max_value;
-        for (int i = 0; i < 8; i++) {
-            // MSB first
-            if (byte & (1 << (7 - i))) {
-                pdest->val =  bit1.val;
-            } else {
-                pdest->val =  bit0.val;
-            }
-            num++;
-            pdest++;
+    size_t data_pos = symbols_written / 8;
+    uint8_t *data_bytes = (uint8_t*)src;
+    uint8_t byte=data_bytes[data_pos];
+    if(byte>max_value) byte=max_value;
+    // Encode a byte
+    size_t symbol_pos = 0;
+    for (int bitmask = 0x80; bitmask != 0; bitmask >>= 1) {
+        if (byte&bitmask) {
+            symbols[symbol_pos++] = ws2812_one;
+        } else {
+            symbols[symbol_pos++] = ws2812_zero;
         }
-        if(size==src_size-1) { // stretch out 1 for last pulse
-          (pdest-1)->duration1=reset_ticks;
-        }
-        size++;
-        psrc++;
     }
-    *translated_size = size;
-    *item_num = num;
+    // stretch out the last low duration
+    if(data_pos==data_size-1) {
+      symbols[7].duration1=reset_duration;
+      *done = 1;
+    }
+    // We're done; we should have written 8 symbols.
+    return symbol_pos;
 }
 
 int digitalLeds_initStrands(strand_t strands [], int numStrands) {
   for (int i = 0; i < numStrands; i++) {
     strand_t * pStrand = &(strands[i]);
     ledParams_t ledParams = ledParamsAll[pStrand->ledType];
+    max_value=pStrand->brightLimit;
+    float ratio = (float)RMT_LED_STRIP_RESOLUTION_HZ / 1e9;
+    ws2812_one.duration0=ledParams.T1H*ratio;
+    ws2812_one.duration1=ledParams.T1L*ratio;
+    ws2812_zero.duration0=ledParams.T0H*ratio;
+    ws2812_zero.duration1=ledParams.T0L*ratio;
+    reset_duration=ledParams.TRS*ratio;
 
     pStrand->pixels = (pixelColor_t*)(malloc(pStrand->numPixels * sizeof(pixelColor_t)));
     if (pStrand->pixels == 0) {
       return -1;
     }
-    pStrand->rmt_config = (rmt_config_t)RMT_DEFAULT_CONFIG_TX(pStrand->gpioNum, pStrand->rmtChannel);
-    pStrand->rmt_config.clk_div = 4;
-    ESP_ERROR_CHECK(rmt_config(&pStrand->rmt_config));
-    rmt_driver_install(pStrand->rmt_config.channel, 0, 0);
-    uint32_t counter_clk_hz = 0;
-    rmt_get_counter_clock(pStrand->rmt_config.channel, &counter_clk_hz);
-    float ratio = (float)counter_clk_hz / 1e9;
-    
-    t0h_ticks = ledParams.T0H * ratio;
-    t0l_ticks = ledParams.T0L * ratio;
-    t1h_ticks = ledParams.T1H * ratio;
-    t1l_ticks = ledParams.T1L * ratio;
-    reset_ticks = ledParams.TRS * ratio;
-    max_value = pStrand->brightLimit;
-    rmt_translator_init(pStrand->rmt_config.channel, ws2812_rmt_adapter);
+    rmt_tx_channel_config_t tx_chan_config = {
+        .clk_src = RMT_CLK_SRC_DEFAULT, // select source clock
+        .gpio_num = pStrand->gpioNum,
+        .mem_block_symbols = 64, // increase the block size can make the LED less flickering
+        .resolution_hz = RMT_LED_STRIP_RESOLUTION_HZ,
+        .trans_queue_depth = 4, // set the number of transactions that can be pending in the background
+    };
+    ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &pStrand->rmt_channel));
+
+    const rmt_simple_encoder_config_t simple_encoder_cfg = {
+        .callback = encoder_callback,
+        //Note we don't set min_chunk_size here as the default of 64 is good enough.
+    };
+    ESP_ERROR_CHECK(rmt_new_simple_encoder(&simple_encoder_cfg, &pStrand->rmt_encoder));
+
+    ESP_ERROR_CHECK(rmt_enable(pStrand->rmt_channel));
+    pStrand->rmt_config = (rmt_transmit_config_t){
+        .loop_count = 0, // no transfer loop
+    };
   }
   for (int i = 0; i < numStrands; i++) {
     strand_t * pStrand = &strands[i];
@@ -106,10 +115,14 @@ void digitalLeds_resetPixels(strand_t * pStrand) {
 }
 
 int IRAM_ATTR digitalLeds_updatePixels(strand_t * pStrand) {
-  esp_err_t err=rmt_write_sample(pStrand->rmt_config.channel, (uint8_t *)(pStrand->pixels), pStrand->numPixels * 3, true);
-  return err;
+  ESP_ERROR_CHECK(rmt_transmit(pStrand->rmt_channel, pStrand->rmt_encoder, pStrand->pixels, pStrand->numPixels*3, &pStrand->rmt_config));
+  ESP_ERROR_CHECK(rmt_tx_wait_all_done(pStrand->rmt_channel, portMAX_DELAY));
+  return 0;
 }
 
 void digitalLeds_free(strand_t * pStrand) {
   free(pStrand->pixels);
+  rmt_disable(pStrand->rmt_channel);
+  rmt_del_encoder(pStrand->rmt_encoder);
+  rmt_del_channel(pStrand->rmt_channel);
 }
