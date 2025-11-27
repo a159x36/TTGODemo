@@ -47,11 +47,20 @@ void showfps() {
     static uint64_t last_time=0;
     static int frame=0;
     uint64_t current_time = esp_timer_get_time();
-    if ((frame++ % 20) == 1) {
-        printf("FPS:%f %d\n", 1.0e6 / (current_time - last_time),frame);
-        vTaskDelay(0);
+    frame++;
+    if(current_time-last_time>3000000 || last_time==0) {
+        last_time=current_time;
+        frame=0;
+        return;
     }
-    last_time=current_time;
+    if (current_time-last_time > 1000000) {
+        printf("FPS:%f Free:%d %d\n", (1.0e6*frame) / (current_time - last_time),
+            heap_caps_get_free_size(MALLOC_CAP_DMA),
+            heap_caps_get_free_size(MALLOC_CAP_32BIT));
+        vTaskDelay(1);
+        frame=0;
+        last_time=current_time;
+    }
 }
 
 void delay_us(int delay) {
@@ -135,19 +144,13 @@ key_type get_input() {
 
 // menu with a rotating teapot, because... why not.
 int demo_menu(char * title, int nentries, char *entries[], int select) {
-    // for fps calculation
-
     extern image_header  bubble;
-
-    int64_t current_time;
-    int64_t last_time = esp_timer_get_time();
     int bx=83,by=57;
     int vbx=1,vby=1;
     vec3f rotation={PI/2-0.2,0,0};
     float teapot_size=(20*REAL_DISPLAY_HEIGHT)/135;
     colourtype teapot_col={220,20,40};
     vec2f pos;
-    int frame=0;
     while(1) {
         cls(rgbToColour(50,50,50));
         setFont(FONT_DEJAVU18);
@@ -196,14 +199,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
         }
         #endif
         flip_frame();
-        current_time = esp_timer_get_time();
-        if ((frame++ % 5) == 0) {
-            printf("FPS:%f %d %d\n", 1.0e6 / (current_time - last_time),
-                heap_caps_get_free_size(MALLOC_CAP_DMA),
-                heap_caps_get_free_size(MALLOC_CAP_32BIT));
-                vTaskDelay(1);
-        }
-        last_time = current_time;
+        showfps();
         key_type key=get_input();
         if(key==LEFT_DOWN) select=(select+1)%nentries;
         if(key==RIGHT_DOWN) return select;
