@@ -292,7 +292,7 @@ void wifi_scan(int setap) {
                 draw_rectangle(0,18+i*10,display_width,10,rgbToColour(10,100,100));
             print_ap_info(ap_list+i);
         }
-        vec2 tp=get_touchpads();
+        vec2i tp=get_touchpads();
         if(ap_number!=0) {
             highlight= (highlight+tp.y)%ap_number;
         }

@@ -601,7 +601,7 @@ void led_numbers(void) {
 }
 
 void led_cube(void) {
-    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 128, .numPixels = 256},};
+    strand_t STRANDS[] = { {.rmtChannel = 0, .gpioNum = 17, .ledType = LED_WS2812B_V3, .brightLimit = 255, .numPixels = 256},};
     strand_t *pStrand= STRANDS;
     vec3f rot=(vec3f){(rand()%31415)/5000.0,(rand()%31415)/5000.0,(rand()%31415)/5000.0};;
     vec2f pos=(vec2f){16,16};
@@ -612,8 +612,9 @@ void led_cube(void) {
     int delay=100;
     led_instructions();
     while(get_input()!=LEFT_DOWN) {
-        draw_rectangle(0,0,32,32,rgbToColour(20,20,20));
+        draw_rectangle(0,0,32,32,rgbToColour(5,5,5));
         draw_cube(pos,size,rot);
+        //draw_teapot(pos,6,rot,(colourtype){0,0,0},true,NULL,NULL);
         rot=add3d(rot,(vec3f){0.0523,0.0354,0.0714});
         for(int i=0;i<16;i++)
             for(int j=0;j<16;j++) {
@@ -626,7 +627,7 @@ void led_cube(void) {
                         uint8_t b=pixel<<3;
                         rr+=r;gg+=g;bb+=b;
                     }
-                pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(rr/8, gg/8, bb/8);
+                pStrand->pixels[((i&1)?j:(15-j))+i*16]=pixelFromRGB(rr/16, gg/16, bb/16);
             }
         digitalLeds_updatePixels(pStrand);
         delay_us(delay*100);

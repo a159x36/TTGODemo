@@ -14,7 +14,7 @@ typedef enum {
 void input_output_init();
 int demo_menu(char * title, int nentries, char *entries[], int select);
 key_type get_input();
-vec2 get_touchpads();
+vec2i get_touchpads();
 void get_string(char *title, char *original, int len);
 int storage_read_int(char *name, int def);
 void storage_write_int(char *name, int val);

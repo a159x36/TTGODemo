@@ -8,7 +8,7 @@
 #include "image_wave.h"
 #include "demos.h"
 #include "graphics3d.h"
-#include <driver/touch_pad.h>
+#include <driver/touch_sens.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <freertos/timers.h>
@@ -24,7 +24,7 @@
 #include <nvs_flash.h>
 
 
-
+touch_channel_handle_t chan_handle[4];
 #ifdef TTGO_S3
 #define SHOW_TOUCH_PADS
 static const int RIGHT_BUTTON=14;
@@ -69,17 +69,13 @@ void delay_us(int delay) {
 }
 
 static int read_touch(int t) {
-    #ifdef TTGO_S3
+
     uint32_t touch_value;
-    touch_pad_read_raw_data(t, &touch_value);
-    //printf("touch %lu\n",touch_value);
-    if(touch_value>30000) return 1;
-    #else
-    uint16_t touch_value;
-    touch_pad_read(t, &touch_value);
-    if(touch_value<1000) return 1;
-    #endif
-    
+    //printf("touch %d\n",t);
+    //touch_pad_read(t, &touch_value);
+    ESP_ERROR_CHECK(touch_channel_read_data(chan_handle[t], TOUCH_CHAN_DATA_TYPE_SMOOTH, &touch_value));
+    //printf("touch %d %lu\n",t,touch_value);
+    if(touch_value<1000) return 1;    
     return 0;
 }
 
@@ -188,7 +184,7 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
         }
         #ifdef SHOW_TOUCH_PADS
         for (int i = 0; i <4; i++) {
-            if(read_touch(TOUCH_PADS[i])) {
+            if(read_touch(i)) {
                 int x=(i%2*REAL_DISPLAY_WIDTH/2);
                 int y=i>1?0:REAL_DISPLAY_HEIGHT-5;
                 if(get_orientation())  
@@ -205,7 +201,22 @@ int demo_menu(char * title, int nentries, char *entries[], int select) {
         if(key==RIGHT_DOWN) return select;
     }
 }
-
+#if SOC_TOUCH_SENSOR_VERSION == 1       // ESP32
+#define EXAMPLE_TOUCH_SAMPLE_CFG_DEFAULT()      {TOUCH_SENSOR_V1_DEFAULT_SAMPLE_CONFIG(5.0, TOUCH_VOLT_LIM_L_0V5, TOUCH_VOLT_LIM_H_1V7)}
+#define EXAMPLE_TOUCH_CHAN_CFG_DEFAULT()        {  \
+    .abs_active_thresh = {1000},  \
+    .charge_speed = TOUCH_CHARGE_SPEED_7,  \
+    .init_charge_volt = TOUCH_INIT_CHARGE_VOLT_DEFAULT,  \
+    .group = TOUCH_CHAN_TRIG_GROUP_BOTH,  \
+}
+#elif SOC_TOUCH_SENSOR_VERSION == 2     // ESP32-S2 & ESP32-S3
+#define EXAMPLE_TOUCH_SAMPLE_CFG_DEFAULT()      {TOUCH_SENSOR_V2_DEFAULT_SAMPLE_CONFIG(500, TOUCH_VOLT_LIM_L_0V5, TOUCH_VOLT_LIM_H_2V2)}
+#define EXAMPLE_TOUCH_CHAN_CFG_DEFAULT()        {  \
+    .active_thresh = {2000},  \
+    .charge_speed = TOUCH_CHARGE_SPEED_7,  \
+    .init_charge_volt = TOUCH_INIT_CHARGE_VOLT_DEFAULT,  \
+}
+#endif
 void input_output_init() {
      // queue for button presses
     inputQueue = xQueueCreate(4,4);
@@ -219,7 +230,32 @@ void input_output_init() {
     gpio_isr_handler_add(0, gpio_isr_handler, (void*) 0);
     gpio_isr_handler_add(RIGHT_BUTTON, gpio_isr_handler, (void*) RIGHT_BUTTON);
 #ifdef SHOW_TOUCH_PADS
-    touch_pad_init();
+    /* Handles of touch sensor */
+    touch_sensor_handle_t sens_handle = NULL;
+    
+
+    /* Step 1: Create a new touch sensor controller handle with default sample configuration */
+    touch_sensor_sample_config_t sample_cfg[TOUCH_SAMPLE_CFG_NUM] = EXAMPLE_TOUCH_SAMPLE_CFG_DEFAULT();
+    touch_sensor_config_t sens_cfg = TOUCH_SENSOR_DEFAULT_BASIC_CONFIG(TOUCH_SAMPLE_CFG_NUM, sample_cfg);
+    ESP_ERROR_CHECK(touch_sensor_new_controller(&sens_cfg, &sens_handle));
+    touch_channel_config_t chan_cfg = EXAMPLE_TOUCH_CHAN_CFG_DEFAULT();
+    /* Allocate new touch channel on the touch controller */
+    for (int i = 0; i < 4; i++) {
+        ESP_ERROR_CHECK(touch_sensor_new_channel(sens_handle, TOUCH_PADS[i], &chan_cfg, &chan_handle[i]));
+        /* Display the touch channel corresponding GPIO number, you can also know from `touch_sensor_channel.h` */
+        touch_chan_info_t chan_info = {};
+        ESP_ERROR_CHECK(touch_sensor_get_channel_info(chan_handle[i], &chan_info));
+        printf("Touch [CH %d] enabled on GPIO%d\n", TOUCH_PADS[i], chan_info.chan_gpio);
+    }
+    
+
+    touch_sensor_filter_config_t filter_cfg = TOUCH_SENSOR_DEFAULT_FILTER_CONFIG();
+    ESP_ERROR_CHECK(touch_sensor_config_filter(sens_handle, &filter_cfg));
+    ESP_ERROR_CHECK(touch_sensor_enable(sens_handle));
+    ESP_ERROR_CHECK(touch_sensor_start_continuous_scanning(sens_handle));
+    
+    /*
+   // touch_pad_init();
     for (int i = 0;i< 4;i++) {
         #ifdef TTGO_S3
         touch_pad_config(TOUCH_PADS[i]);
@@ -233,6 +269,7 @@ void input_output_init() {
     touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
     touch_pad_fsm_start();
     #endif
+    */
     
 #endif
 }
@@ -241,15 +278,15 @@ static uint16_t touch_values[4];
 static uint64_t touch_time=0;
 static uint64_t delay=400000;
 
-vec2 get_touchpads() {
-    vec2 xy = {0, 0};
+vec2i get_touchpads() {
+    vec2i xy = {0, 0};
 #ifdef SHOW_TOUCH_PADS
     //const int TOUCH_PADS[4] = {2, 3, 9, 8};
     
     uint64_t currenttime = esp_timer_get_time();
     uint64_t timesince = currenttime - touch_time;
     for (int i = 0; i < 4; i++) {
-        uint32_t touch_value=read_touch(TOUCH_PADS[i]);
+        uint32_t touch_value=read_touch(i);
         if (touch_value &&
             (!touch_values[i] || timesince > delay)) {
             if ((i / 2) == 0) {
@@ -334,7 +371,7 @@ void get_string(char *title, char *string, int len) {
         draw_keyboard(48,highlight,alt);
         draw_controls(controls,control);
         flip_frame();
-        vec2 tp=get_touchpads();
+        vec2i tp=get_touchpads();
         key=get_input();
         if(key==LEFT_DOWN)
             control=(control+1)%strlen(controls);
