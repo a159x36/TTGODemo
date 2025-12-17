@@ -86,6 +86,12 @@ void event_handler(void *arg, esp_event_base_t event_base,
             ESP_LOGI(tag, "WiFi Scan Done");
             esp_wifi_scan_start(NULL, false);
             break;
+        case WIFI_EVENT_AP_START:
+            xEventGroupSetBits(network_event_group, AP_STARTED);
+            break;
+        case WIFI_EVENT_AP_STOP:
+            xEventGroupClearBits(network_event_group, AP_STARTED);
+            break;
         }
     }
     if (event_base == IP_EVENT) {
@@ -145,6 +151,7 @@ void webserver(void) {
         print_xy(network_event,1,display_height-8);
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
+    wifi_disconnect();
 }
 
 static QueueHandle_t imageQueue=NULL;

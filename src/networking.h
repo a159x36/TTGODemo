@@ -12,6 +12,7 @@ void init_eth();
 extern wifi_mode_type wifi_mode;
 #define CONNECTED_BIT 1
 #define AUTH_FAIL 2
+#define AP_STARTED 4
 extern esp_netif_t *network_interface;
 extern esp_netif_t *network_interface_ap;
 extern char network_event[64];

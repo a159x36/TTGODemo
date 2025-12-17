@@ -64,14 +64,25 @@ int wifi_connected() {
     return 0;
 }
 
-void wifi_disconnect() {
+int ap_started() {
+    if(network_event_group)
+        return xEventGroupGetBits(network_event_group) & AP_STARTED;
+    return 0;
+}
 
+void wifi_disconnect() {
+    if(network_interface_ap !=NULL) {
+        if(ap_started()) {
+            esp_wifi_set_mode(WIFI_MODE_STA);
+            while(ap_started());
+            return;
+        }
+    }
     if(network_interface!=NULL) {
         if(wifi_connected()) {
             esp_wifi_disconnect();
             while(wifi_connected());
         }
-        esp_wifi_stop();
     }
 }
 void init_wifi(wifi_mode_type mode) {
@@ -210,6 +221,7 @@ void wifi_ap(void) {
         }
         flip_frame();
     } while(get_input()!=RIGHT_DOWN);
+    wifi_disconnect();
 }
 
 
